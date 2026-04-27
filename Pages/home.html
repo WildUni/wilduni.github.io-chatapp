@@ -1,0 +1,59 @@
+<!-- <button @click="addChat">Add a chat</button>
+<button @click="$graffiti.logout($graffitiSession.value)">
+    Log Out
+</button>
+<ul>
+    <li v-for="chatId in chats" :key="chatId">
+        <router-link :to="`/chat/${chatId}`"> Chat #{{ chatId }}</router-link>
+    </li>
+</ul> -->
+
+
+
+<wa-page>
+    <div slot="navigation-header">
+        <h1>chats</h1>
+        
+    </div>
+
+    <div slot="navigation">
+        <wa-details summary="Branches">
+            <ChatTree></ChatTree>
+
+        </wa-details>
+        <ChatList @update-chat-url="updateChatUrl"></ChatList>
+    </div>
+
+
+    <div slot='navigation-footer'>
+        <h1>Profile</h1>
+    </div>
+
+    <div slot="main-header">
+        <h1 v-if="activeChatId">Chat #{{ activeChatId }}</h1>
+        <h1 v-else>Chat Name</h1>
+        
+    </div>
+    <div slot="aside">
+        <h1>Profile</h1>
+    </div>
+
+    <div slot="main-footer">
+        <ChatInput></ChatInput>
+    </div>
+
+
+    <main>
+        <section v-if="activeChatId">
+            <ChatFlow/>
+        </section>
+        <section v-else>
+            <ChatFlow/>
+        </section>
+    </main>
+
+    
+</wa-page>
+
+
+

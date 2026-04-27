@@ -1,0 +1,39 @@
+<ul>
+    <li v-for="chatId in chats" :key="chatId">
+        <!-- <button type="button" @click="selectChat(chatId)"> -->
+          <!-- <ChatListItem :chat-id="chatId"  @click="selectChat(chatId)" :isSelected="chatId == selectedChat"></ChatListItem> -->
+          <ChatListItem :chat-id="chatId" @click="emitUpdateUrl(chatId)"></ChatListItem>
+    </li>
+</ul>
+
+<!-- await graffiti.post(
+      {
+        // The object's "value" can be any JSON,
+        // feel free to change these properties
+        // and add new ones as needed based on your
+        // tracker's needs
+        value: {
+          activity: "Update",
+
+          // Generate a unique ID for the entry
+          // to identifies it across updates
+          id: crypto.randomUUID(),
+
+          // Timestamps for when the tracked entry "happened"
+          // (published) and when the tracked entry was modified (updated)
+          published: form.value.published,
+          updated: Date.now(),
+
+          // Content includes any notes for the tracker entry
+          content:{
+            name,
+            volume : form.value.content.volume
+          },
+        },
+        // Empty allowed list => only you can see the data
+        allowed: [],
+
+        channels: trackerChannels.value,
+      },
+      session.value,
+    ) -->

@@ -1,0 +1,9 @@
+
+<div class="inputContainer">
+    <wa-input placeholder="Your Message..." 
+    with-clear 
+    :value='myMessage' 
+    @input="myMessage = $event.target.value"
+    @keydown.enter="sendMessage"></wa-input>
+    <button @click="sendMessage">Send</button>
+</div>

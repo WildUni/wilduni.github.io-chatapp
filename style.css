@@ -1,0 +1,48 @@
+*{
+    margin: 0;
+    box-sizing: border-box;
+}
+
+a.router-link-active {
+    color: black;
+    text-decoration: none;
+}
+
+ul{
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chat-list-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 300px;
+  padding: 16px 16px;
+  border-radius: 8px;
+}
+
+.chat-list-item:hover{
+    background-color: #efefef;
+}
+
+.selected{
+    background-color: #efefef;
+}
+
+.flex-col{
+    display: flex;
+    flex-direction: column;
+}
+
+.flex{
+    display: flex;
+}
+
+.inputContainer{
+    display: flex;
+
+}
+
