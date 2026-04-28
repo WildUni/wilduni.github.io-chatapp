@@ -31,12 +31,15 @@
     </div>
 
     <div slot="main-header">
-        <h1 v-if="activeChatId">Chat #{{ activeChatId }}</h1>
+        <h1 v-if="activeChatId">Chat Name : {{activeChatName}}</h1>
         <h1 v-else>Public Chats</h1>
         
     </div>
     <div slot="aside">
         <h1>Profile</h1>
+        <button @click="$graffiti.logout($graffitiSession.value)">
+                        Log Out
+                    </button>
     </div>
 
     <div slot="main-footer">

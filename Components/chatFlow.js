@@ -1,18 +1,19 @@
-import { useActiveChatStore } from "../stores/activeChat.js";
+import { useChatStore } from "../stores/chat.js";
 import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 
 import loadMessage from "./message.js";
-
+import { storeToRefs } from "pinia"
 
 function setup() {
     const session = useGraffitiSession();
-    const activeChat = useActiveChatStore();
+    const chatStore = useChatStore();
+    const {activeChatId} = storeToRefs(chatStore);
 
     function currentChannels() {
-      return activeChat.activeChatId == null ? [] : [String(activeChat.activeChatId)];
+      return activeChatId.value == null ? [] : [String(activeChatId.value)];
     }
     
     const { objects: chatMessages } = useGraffitiDiscover(

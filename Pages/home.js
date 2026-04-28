@@ -7,8 +7,7 @@ import loadChatFlow from "../Components/chatFlow.js";
 
 
 import { storeToRefs } from "pinia"
-import { useActiveChatStore } from "../stores/activeChat.js";
-import { useNewChatStore } from "../stores/newChat.js";
+import { useChatStore } from "../stores/chat.js";
 
 import {
   GraffitiPlugin,
@@ -22,27 +21,16 @@ function setup() {
   const route = useRoute()
   const router = useRouter()
   const session = useGraffitiSession();
-  
 
-  const chats = ref([1, 2])
+  const chatStore = useChatStore();
+  const {activeChatId, activeChatName, newChatName} = storeToRefs(chatStore)
 
-  const activeChat = useActiveChatStore();
-  const { activeChatId } = storeToRefs(activeChat)
-
-  const newChat = useNewChatStore();
-  const { newChatName } = storeToRefs(newChat)
-
-  function updateChatUrl(chatId) {
-    // activeChat.setActiveChat(chatId);
-    router.push({ name: "chat", params: { chatId } })
-    console.log(activeChat.activeChatId)
-  }
 
   function setActiveChat(chatId, chatName){
-    activeChat.activeChatId = chatId;
-    activeChat.activeChatName = chatName;
-    console.log(activeChat.activeChatId)
-    console.log(activeChat.activeChatName)
+    activeChatId.value = chatId;
+    activeChatName.value = chatName;
+    // console.log(activeChat.activeChatId)
+    // console.log(activeChat.activeChatName)
     router.push({ name: "chat", params: { chatId } })
     
   }
@@ -54,7 +42,7 @@ function setup() {
 
   function clearActive(){
     // activeChat.setActiveChat(null);
-    console.log(activeChat.activeChatId)
+    console.log(activeChatId.value)
   }
   // watch(
   //   () => route.params.chatId,
@@ -71,14 +59,13 @@ function setup() {
   // console.log(newChat.setNewChatName)
 
   return {
-    chats,
     setActiveChat,
     activeChatId,
+    activeChatName,
     clearActive,
     printActive,
-    createNewChat: newChat.createNewChat,
+    createNewChat: chatStore.createNewChat,
     newChatName,
-    setNewChatName: newChat.setNewChatName,
   }
 }
 

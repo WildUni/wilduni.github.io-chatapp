@@ -5,20 +5,20 @@ import {
   useGraffitiSession,
 } from "@graffiti-garden/wrapper-vue";
 
-import { useActiveChatStore } from "./activeChat.js";
-
-export const useNewChatStore = defineStore("newChat", () => {
+export const useChatStore = defineStore("chat", () => {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
-    const activeChat = useActiveChatStore();
 
+
+    const activeChatId = ref(null);
+    const activeChatName = ref(null);
+
+
+    const joinChatId = ref(null);
 
     const newChatName = ref('');
-    
-    function setNewChatName(name) {
-        newChatName.value = name;
-    }
-    
+
+
     async function createNewChat(parent = null){
         if(!newChatName.value) return
         
@@ -64,14 +64,16 @@ export const useNewChatStore = defineStore("newChat", () => {
             session.value      
         )
         newChatName.value = "";
-
         console.log('chat-posted')
     }
 
     return {
+        activeChatId,
+        activeChatName,
         newChatName,
         createNewChat,
-        setNewChatName
+        joinChatId,
+        
     }
 });
 

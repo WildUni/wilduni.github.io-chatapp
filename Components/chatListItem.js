@@ -1,10 +1,10 @@
-import { useActiveChatStore } from "../stores/activeChat.js";
-import { storeToRefs } from "pinia";
+
+import {storeToRefs} from 'pinia';
+import { useChatStore } from "../stores/chat.js";
 
 function setup(props) {
-  // console.log(props.chats);
-  const activeChat = useActiveChatStore();
-  const { activeChatId } = storeToRefs(activeChat);
+  const chatStore = useChatStore();
+  const { activeChatId } = storeToRefs(chatStore);
   
   return {
     activeChatId

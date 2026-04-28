@@ -4,12 +4,15 @@ import {
   useGraffiti,
   useGraffitiSession,
 } from "@graffiti-garden/wrapper-vue";
-import { useActiveChatStore } from "../stores/activeChat.js";
+import {storeToRefs} from 'pinia';
+import { useChatStore } from "../stores/chat.js";
+
 
 function setup() {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
-    const activeChat = useActiveChatStore();
+    const chatStore = useChatStore();
+    const {activeChatId} = storeToRefs(chatStore)
     const myMessage = ref('')
 
 
@@ -19,7 +22,7 @@ function setup() {
             console.log('empty')
             return
         }
-        if(activeChat.activeChatId == null){
+        if(activeChatId.value == null){
             console.log('no active chat')
             return
         }
@@ -30,7 +33,7 @@ function setup() {
                     content: myMessage.value,
                     published: Date.now(),
                 },
-                channels: [String(activeChat.activeChatId)]
+                channels: [String(activeChatId.value)]
             },
             session.value,
         );
