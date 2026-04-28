@@ -26,7 +26,6 @@
 
     <div slot='navigation-footer'>
         <h1>Profile</h1>
-        <button @click='printActive'></button>
         <button @click="clearActive">clear active </button>
     </div>
 
@@ -36,10 +35,10 @@
         
     </div>
     <div slot="aside">
-        <h1>Profile</h1>
+        <Profile></Profile>
         <button @click="$graffiti.logout($graffitiSession.value)">
-                        Log Out
-                    </button>
+            Log Out
+        </button>
     </div>
 
     <div slot="main-footer">

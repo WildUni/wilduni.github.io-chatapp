@@ -59,7 +59,7 @@ app
 .use(pinia)
 .use(router)
 .use(GraffitiPlugin, {
-  graffiti: new GraffitiLocal(),
-  // graffiti: new GraffitiDecentralized(),
+  // graffiti: new GraffitiLocal(),
+  graffiti: new GraffitiDecentralized(),
 })
 .mount('#app')

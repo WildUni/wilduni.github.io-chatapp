@@ -1,0 +1,8 @@
+<h1>Profile</h1>
+<img v-if="profileImageUrl" :src="profileImageUrl" style="max-width: 100px;"/>
+<input type="file" @change="handleFileUpload" accept="image/*"/>
+
+<p>ProfileName:<input v-model="editedName"></p>
+<p>ProfileBio:<input v-model="editedBio"></p>
+<button @click="saveChanges">Save</button>
+

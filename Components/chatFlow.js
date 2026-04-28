@@ -32,6 +32,7 @@ function setup() {
       },
         session
     );
+
     return {
       chatMessages
     };

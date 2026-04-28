@@ -1,5 +1,6 @@
 <ul>
     <li v-for="msg in chatMessages">
+        <!-- {{msg}} -->
         <Message :username="msg.actor" :message-content="msg.value.content"/>
     </li>
 </ul>
