@@ -1,32 +1,12 @@
-<!-- <button @click="addChat">Add a chat</button>
-<button @click="$graffiti.logout($graffitiSession.value)">
-    Log Out
-</button>
-<ul>
-    <li v-for="chatId in chats" :key="chatId">
-        <router-link :to="`/chat/${chatId}`"> Chat #{{ chatId }}</router-link>
-    </li>
-</ul> -->
-
-
 
 <wa-page>
      <div slot="navigation-header">
         <h1>Chats</h1>
-        {{setNewChatName}}
+        {{newChatName}}
         <input 
-        :value='newChatName'
-        @input="setNewChatName($event.target.value)"
-        @keydown.enter=""/>
+        v-model='newChatName'
+        @keydown.enter="createNewChat()"/>
     </div>
-<!--
-    <div slot="navigation">
-        <wa-details summary="Branches">
-            <ChatTree></ChatTree>
-
-        </wa-details>
-        <ChatList @update-chat-url="updateChatUrl"></ChatList>
-    </div> -->
 
     <wa-tab-group slot="navigation">
         <wa-tab panel="chats">Chats</wa-tab>
@@ -36,7 +16,7 @@
         >Branches</wa-tab>
 
         <wa-tab-panel name="chats">
-            <ChatList @update-chat-url="updateChatUrl"></ChatList>
+            <ChatList @update-active-chat="setActiveChat"></ChatList>
         </wa-tab-panel>
 
         <wa-tab-panel name="branches">

@@ -28,12 +28,13 @@ export const useNewChatStore = defineStore("newChat", () => {
                 value:{
                     action: 'Membership',
                     value: 'Join',
-                    id: chatId, 
-                    name: newChatName.value,
+                    chatId: chatId, 
+                    chatName: newChatName.value,
                     published: Date.now(),
                 },
                 channels: [`user:${session.value.actor}:Membership`],
-                allowed: []
+                // channels: [`user:${session.value.actor}:Membership`],
+                // allowed: []
             },
             session.value      
         )
@@ -41,7 +42,7 @@ export const useNewChatStore = defineStore("newChat", () => {
             {
                 value:{
                     action: 'Create',
-                    id: chatId, 
+                    chatId: chatId, 
                     name: newChatName.value,
                     published: Date.now(),
                 },
@@ -62,8 +63,9 @@ export const useNewChatStore = defineStore("newChat", () => {
             },
             session.value      
         )
-        activeChat.setActiveChat(chatId);
         newChatName.value = "";
+
+        console.log('chat-posted')
     }
 
     return {

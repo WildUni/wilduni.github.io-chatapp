@@ -3,12 +3,9 @@ import { defineStore } from "pinia";
 
 export const useActiveChatStore = defineStore("activeChat", () => {
   const activeChatId = ref(null);
+  const activeChatName = ref(null);
 
-  function setActiveChat(chatId) {
-    activeChatId.value = chatId;
-  }
-
-  return { activeChatId, setActiveChat };
+  return { activeChatId };
 });
 
 

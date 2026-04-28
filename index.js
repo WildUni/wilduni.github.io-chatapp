@@ -45,7 +45,6 @@ function setup(){
         },
         { immediate: true },
     );
-
     return {};
 }
 

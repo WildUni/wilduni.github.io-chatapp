@@ -1,9 +1,12 @@
 
+<!-- <ul>
+    <li v-for="chat in chats" :key="chat.chatId">
+        <ChatListItem :chatId="chat.chatId"  :chatName="chat.chatName" @click="emitUpdateChat(chat.chatId, chat.chatName)"></ChatListItem>
+    </li>
+</ul> -->
+
 <ul>
-    <li v-for="chatId in chats" :key="chatId">
-        <!-- <button type="button" @click="selectChat(chatId)"> -->
-          <!-- <ChatListItem :chat-id="chatId"  @click="selectChat(chatId)" :isSelected="chatId == selectedChat"></ChatListItem> -->
-          <ChatListItem :chat-id="chatId" @click="emitUpdateUrl(chatId)"></ChatListItem>
+    <li v-for="chat in chatList" :key="chat.value.chatId">
+        <ChatListItem :chatId="chat.value.chatId"  :chatName="chat.value.chatName" @click="emitUpdateChat(chat.value.chatId, chat.value.chatName)"></ChatListItem>
     </li>
 </ul>
-

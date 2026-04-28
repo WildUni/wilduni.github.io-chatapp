@@ -12,7 +12,7 @@ function setup(props) {
 }
 
 export default async () => ({
-  props: ["chatId"],
+  props: ["chatId", 'chatName'],
   setup,
   template: await fetch(new URL("./chatListItem.html", import.meta.url)).then((r) =>
     r.text(),
