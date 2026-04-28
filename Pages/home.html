@@ -11,27 +11,48 @@
 
 
 <wa-page>
-    <div slot="navigation-header">
-        <h1>chats</h1>
-        
+     <div slot="navigation-header">
+        <h1>Chats</h1>
+        {{setNewChatName}}
+        <input 
+        :value='newChatName'
+        @input="setNewChatName($event.target.value)"
+        @keydown.enter=""/>
     </div>
-
+<!--
     <div slot="navigation">
         <wa-details summary="Branches">
             <ChatTree></ChatTree>
 
         </wa-details>
         <ChatList @update-chat-url="updateChatUrl"></ChatList>
-    </div>
+    </div> -->
 
+    <wa-tab-group slot="navigation">
+        <wa-tab panel="chats">Chats</wa-tab>
+        <wa-tab
+            panel="branches"
+            :disabled.prop="activeChatId == null || activeChatId === ''"
+        >Branches</wa-tab>
+
+        <wa-tab-panel name="chats">
+            <ChatList @update-chat-url="updateChatUrl"></ChatList>
+        </wa-tab-panel>
+
+        <wa-tab-panel name="branches">
+            <ChatTree></ChatTree>
+        </wa-tab-panel>
+    </wa-tab-group>
 
     <div slot='navigation-footer'>
         <h1>Profile</h1>
+        <button @click='printActive'></button>
+        <button @click="clearActive">clear active </button>
     </div>
 
     <div slot="main-header">
         <h1 v-if="activeChatId">Chat #{{ activeChatId }}</h1>
-        <h1 v-else>Chat Name</h1>
+        <h1 v-else>Public Chats</h1>
         
     </div>
     <div slot="aside">
