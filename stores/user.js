@@ -18,7 +18,7 @@ export const useUserStore = defineStore("user", () => {
     {
       properties: {
         value: {
-          required: ["action", "published"],
+          required: ["action", "published", 'user'],
           properties: {
             action: { type: "string" },
             published: { type: "number" },
@@ -50,6 +50,7 @@ export const useUserStore = defineStore("user", () => {
 
   const profileImageUrl = ref();
   let currentObjectUrl = null;
+
   watch(
     () => profileImageRawUrl.value,
     async (url) => {
@@ -65,15 +66,11 @@ export const useUserStore = defineStore("user", () => {
     { immediate: true }
   );
 
-
-
   const profileName = computed(() =>{
-    console.log(userInformation.value.ProfileName.value)
+    // console.log(userInformation.value.ProfileName.value)
     return userInformation.value.ProfileName?.value?.name ?? 'null'
   }
   );
-
-  
 
   const profileBio = computed(() =>
     userInformation.value.ProfileBio?.value?.content ?? "null"
@@ -84,6 +81,7 @@ export const useUserStore = defineStore("user", () => {
   async function updateProfileName(name){
     graffiti.post({
       value:{
+        user:session.value.actor,
         action: 'ProfileName',
         name: name,
         published: Date.now(),
@@ -106,6 +104,7 @@ export const useUserStore = defineStore("user", () => {
     
     graffiti.post({
       value:{
+        user:session.value.actor,
         action: 'ProfileImage',
         url: mediaUrl,
         published: Date.now(),
@@ -127,6 +126,7 @@ export const useUserStore = defineStore("user", () => {
   async function updateProfileBio(content){
     graffiti.post({
       value:{
+        user:session.value.actor,
         action: 'ProfileBio',
         content: content,
         published: Date.now(),

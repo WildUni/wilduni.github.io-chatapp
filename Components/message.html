@@ -1,5 +1,11 @@
 <div class="message-wrapper flex">
-    <wa-avatar label="User avatar"></wa-avatar>
+    <!-- <wa-avatar label="User avatar" :src="avatarUrl"></wa-avatar>
+     -->
+    <div class="avatar">
+        <img v-if='avatarUrl' :src="avatarUrl" alt="User avatar" />
+        <wa-avatar v-else label="User avatar" :src="avatarUrl"></wa-avatar>
+    </div>
+    
     <div class="message-text-container">
         <div class="message-username">
             {{username}}
@@ -7,5 +13,7 @@
         <div class="message-content">
             {{messageContent}}
         </div>
+        
     </div>
+    {{ new Date(published).toLocaleString('en-US') }}
 </div>

@@ -32,12 +32,13 @@ function setup() {
                     action: "Message",
                     content: myMessage.value,
                     published: Date.now(),
+                    user: session.value?.actor
                 },
-                channels: [String(activeChatId.value)]
+                channels: [`Chat:${activeChatId.value}:Messages`]
             },
             session.value,
         );
-        console.log('message posted')
+        // console.log('message posted')
 
         myMessage.value = "";
     }

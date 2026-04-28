@@ -25,6 +25,8 @@ export const useChatStore = defineStore("chat", () => {
       
       const parentChatId = parent ? parent : 'rootChat'
       const chatId = crypto.randomUUID();
+
+      //membership to user channel
       graffiti.post(
           {
             value:{
@@ -40,31 +42,36 @@ export const useChatStore = defineStore("chat", () => {
           },
           session.value      
       )
+
+      //posted to chat activity
       graffiti.post(
-          {
-              value:{
-                  action: 'Create',
-                  chatId: chatId, 
-                  name: newChatName.value,
-                  published: Date.now(),
-              },
-              channels: [`Chat:${chatId}:Activity`],
+        {
+          value:{
+            action: 'Create',
+            chatId: chatId, 
+            name: newChatName.value,
+            published: Date.now(),
           },
-          session.value      
+          channels: [`Chat:${chatId}:Activity`],
+        },
+        session.value      
       )
+
+      //posted to chat membership
       graffiti.post(
-          {
-              value:{
-                  action: 'Membership',
-                  value: 'Join',
-                  user: session.value.actor,
-                  published: Date.now(),
-                  parentChatId
-              },
-              channels: [`Chat:${chatId}:Membership`],
+        {
+          value:{
+            action: 'Membership',
+            value: 'Join',
+            user: session.value.actor,
+            published: Date.now(),
+            parentChatId
           },
-          session.value      
+          channels: [`Chat:${chatId}:Membership`],
+        },
+        session.value      
       )
+
       newChatName.value = "";
       console.log('chat-posted')
   }

@@ -8,6 +8,7 @@ import loadProfile from "../Components/profile.js"
 
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
+import { useUserStore } from "../stores/user.js";
 
 import {
   GraffitiPlugin,
@@ -24,6 +25,8 @@ function setup() {
 
   const chatStore = useChatStore();
   const {activeChatId, activeChatName, newChatName, chatList} = storeToRefs(chatStore)
+  const userStore = useUserStore();
+  const {profileName, profileImageUrl} = storeToRefs(userStore);
 
   function setActiveChat(chatId, chatName){
     activeChatId.value = chatId;
@@ -67,6 +70,8 @@ function setup() {
     clearActive,
     createNewChat: chatStore.createNewChat,
     newChatName,
+    profileName, 
+    profileImageUrl,
   }
 }
 
