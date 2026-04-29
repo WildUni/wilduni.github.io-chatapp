@@ -7,6 +7,6 @@
 
 <ul>
     <li v-for="chat in chatList" :key="chat.value.chatId">
-        <ChatListItem :chatId="chat.value.chatId"  :chatName="chat.value.chatName" @click="emitUpdateChat(chat.value.chatId, chat.value.chatName)"></ChatListItem>
+        <ChatListItem :chatId="chat.value.chatId"  :chatName="chat.value.chatName" @click="emitUpdateChat(chat.value.chatId, chat.value.chatName, chat.value.rootChatId)"></ChatListItem>
     </li>
 </ul>

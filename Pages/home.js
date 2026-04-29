@@ -24,14 +24,16 @@ function setup() {
   const session = useGraffitiSession();
 
   const chatStore = useChatStore();
-  const {activeChatId, activeChatName, newChatName, chatList} = storeToRefs(chatStore)
+  const {activeChatId, activeChatName, newChatName, chatList, activeChatRootId} = storeToRefs(chatStore)
   const userStore = useUserStore();
   const {profileName, profileImageUrl} = storeToRefs(userStore);
 
-  function setActiveChat(chatId, chatName){
+  function setActiveChat(chatId, chatName, rootId){
     activeChatId.value = chatId;
     activeChatName.value = chatName;
+    activeChatRootId.value = rootId ?? chatId;
     router.push({ name: "chat", params: { chatId } })
+    console.log(activeChatRootId.value)
     
   }
 
@@ -52,6 +54,7 @@ function setup() {
       );
 
       activeChatName.value = activeChat?.value.chatName ?? null;
+      activeChatRootId.value = activeChat?.value.rootChatId ?? activeChatId.value;
     },
     { immediate: true }
   );
@@ -67,6 +70,7 @@ function setup() {
     setActiveChat,
     activeChatId,
     activeChatName,
+    activeChatRootId,
     clearActive,
     createNewChat: chatStore.createNewChat,
     newChatName,

@@ -13,37 +13,67 @@ export const useChatStore = defineStore("chat", () => {
 
   const activeChatId = ref(null);
   const activeChatName = ref(null);
-
-
-  const joinChatId = ref(null);
+  const activeChatRootId = ref(null);
 
   const newChatName = ref('');
 
 
-  async function createNewChat(parent = null){
+  async function createNewChat(parent = null, root = null){
       if(!newChatName.value) return
-      
-      const parentChatId = parent ? parent : 'rootChat'
       const chatId = crypto.randomUUID();
+      const parentChatId = parent ? parent : chatId 
+      const rootChatId = root ? root : chatId
+      
 
       //membership to user channel
-      graffiti.post(
+      if(!root)
+      {
+        graffiti.post(
+            {
+              value:{
+                action: 'Membership',
+                value: 'Join',
+                chatId: chatId, 
+                chatName: newChatName.value,
+                published: Date.now(),
+              },
+              channels: [`user:${session.value.actor}:Membership`],
+              // channels: [`user:${session.value.actor}:Membership`],
+              allowed: []
+            },
+            session.value      
+        )
+        //posted to chat activity + Descendants
+        graffiti.post(
+          {
+            value:{
+              action: 'Create',
+              chatId: chatId, 
+              name: newChatName.value,
+              published: Date.now(),
+              parentChatId: parentChatId,
+              rootChatId: rootChatId,
+            },
+            channels: [`chat:${chatId}:Activity`],
+          },
+          session.value      
+        )
+
+        //posted to chat membership
+        graffiti.post(
           {
             value:{
               action: 'Membership',
               value: 'Join',
-              chatId: chatId, 
-              chatName: newChatName.value,
+              user: session.value.actor,
               published: Date.now(),
             },
-            channels: [`user:${session.value.actor}:Membership`],
-            // channels: [`user:${session.value.actor}:Membership`],
-            allowed: []
+            channels: [`chat:${chatId}:Membership`],
           },
           session.value      
-      )
+        )
+      }
 
-      //posted to chat activity
       graffiti.post(
         {
           value:{
@@ -51,32 +81,23 @@ export const useChatStore = defineStore("chat", () => {
             chatId: chatId, 
             name: newChatName.value,
             published: Date.now(),
+            parentChatId: parentChatId,
+            rootChatId: rootChatId,
           },
-          channels: [`Chat:${chatId}:Activity`],
+          channels: [`chat:${rootChatId}:Descendants`],
         },
         session.value      
       )
-
-      //posted to chat membership
-      graffiti.post(
-        {
-          value:{
-            action: 'Membership',
-            value: 'Join',
-            user: session.value.actor,
-            published: Date.now(),
-            parentChatId
-          },
-          channels: [`Chat:${chatId}:Membership`],
-        },
-        session.value      
-      )
-
       newChatName.value = "";
+      console.log(parentChatId, rootChatId)
       console.log('chat-posted')
   }
 
 
+
+
+
+  //computing chatlist based on user activity
   const channels = computed(() => {
     return session.value ? [`user:${session.value.actor}:Membership`] : [];
   });
@@ -100,6 +121,7 @@ export const useChatStore = defineStore("chat", () => {
     session,
     true
   )
+
   const chatList = computed(() => {
     return Object.values(
       activities.value.reduce((acc, obj) => {
@@ -117,9 +139,9 @@ export const useChatStore = defineStore("chat", () => {
   return {
       activeChatId,
       activeChatName,
+      activeChatRootId,
       newChatName,
       createNewChat,
-      joinChatId,
       chatList
       
   }

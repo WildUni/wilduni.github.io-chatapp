@@ -20,7 +20,7 @@
         </wa-tab-panel>
 
         <wa-tab-panel name="branches">
-            <ChatTree></ChatTree>
+            <ChatTree @update-active-chat="setActiveChat"></ChatTree>
         </wa-tab-panel>
     </wa-tab-group>
 
@@ -30,14 +30,17 @@
             <div>{{profileName}}</div>
         </div> -->
 
-        <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
-            <img :src="profileImageUrl" class="profile-pill-avatar" slot="start"/>
-            <h1>{{profileName}}</h1>
-        </wa-button>
+        <Profile></Profile>
     </div>
 
     <div slot="main-header">
-        <h1 v-if="activeChatId">Chat Name : {{activeChatName}}</h1>
+        <div v-if="activeChatId">
+            <h1>Chat Name : {{activeChatName}}</h1>
+            {{newChatName}}
+            <input 
+            v-model='newChatName'
+            @keydown.enter="createNewChat(activeChatId, activeChatRootId)"/>
+        </div>
         <h1 v-else>Public Chats</h1>
         
     </div>

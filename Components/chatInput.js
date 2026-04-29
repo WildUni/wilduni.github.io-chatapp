@@ -34,7 +34,7 @@ function setup() {
                     published: Date.now(),
                     user: session.value?.actor
                 },
-                channels: [`Chat:${activeChatId.value}:Messages`]
+                channels: [`chat:${activeChatId.value}:Messages`]
             },
             session.value,
         );

@@ -1,81 +1,10 @@
 <h3>Branch under current Chat</h3>
 <wa-tree class="tree-with-lines">
-  <wa-tree-item expanded>
-    Design
-    <wa-tree-item expanded>
-      Brand
-      <wa-tree-item>Colors
-        <wa-tree-item>Typography
-          <wa-tree-item>Typography
-            <wa-tree-item>Typography</wa-tree-item>
-            <wa-tree-item>Logo</wa-tree-item>
-          </wa-tree-item>
-          <wa-tree-item>Logo</wa-tree-item>
-        </wa-tree-item>
-        <wa-tree-item>Logo</wa-tree-item>
-      </wa-tree-item>
-      <wa-tree-item>Typography</wa-tree-item>
-      <wa-tree-item>Logo</wa-tree-item>
-    </wa-tree-item>
-    <wa-tree-item>
-      Components
-      <wa-tree-item>Buttons</wa-tree-item>
-      <wa-tree-item>Forms</wa-tree-item>
-      <wa-tree-item>Navigation</wa-tree-item>
-    </wa-tree-item>
-  </wa-tree-item>
-
-  <wa-tree-item expanded>
-    Development
-    <wa-tree-item>Frontend</wa-tree-item>
-    <wa-tree-item>Backend</wa-tree-item>
-    <wa-tree-item>Infrastructure</wa-tree-item>
-  </wa-tree-item>
-
-  <wa-tree-item>
-    Marketing
-    <wa-tree-item>Social Media</wa-tree-item>
-    <wa-tree-item>Email Campaigns</wa-tree-item>
-    <wa-tree-item>Analytics</wa-tree-item>
-  </wa-tree-item>
+  <TreeNode
+    v-for="node in nestedTree"
+    :key="node.id"
+    :node="node"
+    @select-chat="emitUpdateChat"
+    expanded
+  />
 </wa-tree>
-
-<style>
-  .tree-with-lines {
-    --indent-guide-width: 1px;
-  }
-</style>
-
-
-
-<!-- await graffiti.post(
-      {
-        // The object's "value" can be any JSON,
-        // feel free to change these properties
-        // and add new ones as needed based on your
-        // tracker's needs
-        value: {
-          activity: "Update",
-
-          // Generate a unique ID for the entry
-          // to identifies it across updates
-          id: crypto.randomUUID(),
-
-          // Timestamps for when the tracked entry "happened"
-          // (published) and when the tracked entry was modified (updated)
-          published: form.value.published,
-          updated: Date.now(),
-
-          // Content includes any notes for the tracker entry
-          content:{
-            name,
-            volume : form.value.content.volume
-          },
-        },
-        // Empty allowed list => only you can see the data
-        allowed: [],
-
-        channels: trackerChannels.value,
-      },
-      session.value,
-    ) -->

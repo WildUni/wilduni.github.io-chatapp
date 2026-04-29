@@ -16,8 +16,8 @@ function setup(props, { emit }) {
     const {chatList} = storeToRefs(chatStore)
 
     
-    function emitUpdateChat(chatId, chatName) {
-      emit("update-active-chat", chatId, chatName);
+    function emitUpdateChat(chatId, chatName, rootId) {
+      emit("update-active-chat", chatId, chatName, rootId);
     }
 
     return {

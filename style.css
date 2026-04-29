@@ -107,9 +107,15 @@ wa-drawer::part(dialog){
     height: 80vh;
     margin: 10vh 15vw;
     border-radius: 16px;
-    
 }
 
+wa-drawer::part(header){
+    border-bottom: 2px solid #efefef;
+}
+wa-drawer::part(footer){
+    padding-top:12px;
+    border-top: 2px solid #efefef;
+}
 
 
 .profile-image{
@@ -119,7 +125,7 @@ wa-drawer::part(dialog){
 }
 .profile-wrapper{
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     gap: min(8vw, 8vh);
     align-items: center;
 }
@@ -128,7 +134,6 @@ wa-drawer::part(dialog){
     display: flex;
     flex-direction: column;
     gap: min(4vw, 4vh);
-    flex:1;
 }
 
 .profile-info-wrapper input{
@@ -138,4 +143,14 @@ wa-drawer::part(dialog){
     width: 40vw;
     min-height: 20vh;
     max-height: 20vh;
+}
+
+.profile-text-info{
+    display: flex;
+    flex-direction: column;
+    gap:4px;
+}
+
+.profile-text-info h6{
+    margin-left: 4px;
 }
