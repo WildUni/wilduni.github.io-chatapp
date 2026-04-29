@@ -46,14 +46,6 @@ ul{
 
 }
 
-.avatar img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-
 .profile-pill{
     min-height:10vh;
 }
@@ -138,4 +130,50 @@ wa-drawer::part(dialog){
     width: 40vw;
     min-height: 20vh;
     max-height: 20vh;
+}
+
+.message-wrapper{
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+}
+
+wa-card{
+    min-width: 300px;
+    min-height: 60px;
+}
+
+.message-header{
+    display: flex;
+    gap:16px
+}
+
+.message-header-name{
+    font-weight: 500;
+}
+
+.message-header-date{
+    color: #696969;
+}
+
+
+.avatar{
+    display: flex;
+    align-items: center;
+}
+.avatar img {
+  width: 60px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+wa-card::part(body){
+    padding-top:0;
+    padding-bottom: 8px;
+    border-top:0
+}
+wa-card::part(header){
+    border-bottom: 0;
+    padding-bottom: 0;
 }
