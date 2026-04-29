@@ -1,12 +1,5 @@
-
-<!-- <ul>
-    <li v-for="chat in chats" :key="chat.chatId">
-        <ChatListItem :chatId="chat.chatId"  :chatName="chat.chatName" @click="emitUpdateChat(chat.chatId, chat.chatName)"></ChatListItem>
-    </li>
-</ul> -->
-
 <ul>
     <li v-for="chat in chatList" :key="chat.value.chatId">
-        <ChatListItem :chatId="chat.value.chatId"  :chatName="chat.value.chatName" @click="emitUpdateChat(chat.value.chatId, chat.value.chatName, chat.value.rootChatId)"></ChatListItem>
+        <ChatListItem :chatId="chat.value.chatId"  :chatName="chat.value.chatName" @click="emitUpdateChat(chat.value.chatId, chat.value.chatName)"></ChatListItem>
     </li>
 </ul>

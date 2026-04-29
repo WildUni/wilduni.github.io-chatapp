@@ -1,7 +1,10 @@
-<div class="chat-list-item"  :class="{ selected: chatId === activeChatId }">
+<div class="chat-list-item"  
+  :class="{ selected: chatId === activeChatId }">
   <wa-avatar label="User avatar"></wa-avatar>
-  <div class="flex-col">
-    <h3>{{chatName}}</h3>
-    <p>Chat ID: {{ chatId }}</p>
+  <div class="chatListItem-wrapper">
+    <div class="chatListItem-name fade-text">{{chatName}}</div>
+    <div class="chatListItem-id-wrapper fade-text">
+      Chat ID: {{ chatId }}
+    </div>
   </div>
 </div>
