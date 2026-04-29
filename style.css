@@ -20,6 +20,8 @@ ul{
   align-items: center;
   gap: 16px;
   min-width: 300px;
+  width: 25vw;
+  max-width: 450px;
   padding: 16px 16px;
   border-radius: 8px;
 }
@@ -176,4 +178,36 @@ wa-card::part(body){
 wa-card::part(header){
     border-bottom: 0;
     padding-bottom: 0;
+}
+
+.chatflow-wrapper{
+    display: flex;
+    gap:16px;
+}
+
+
+.chatListItem-wrapper{
+    display: flex;
+    flex-direction: column;
+}
+
+.chatListItem-name{
+    font-weight: 700;
+    font-size: larger;
+    letter-spacing: 0.02em;
+}
+
+.chatListItem-id{
+    color:#696969;
+}
+
+.fade-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+.chatListItem-id-wrapper{
+    max-width: 200px;
 }
