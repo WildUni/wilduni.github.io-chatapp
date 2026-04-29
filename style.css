@@ -62,10 +62,9 @@ ul{
     background-color: #efefef;
 }
 .profile-pill-avatar{
-    width: 5vw;
-    max-width: 64px;
+    width: 60px;
     aspect-ratio: 1;
-    border-radius: 5vw;
+    border-radius: 64px;
 }
 
 wa-tab-group[slot="navigation"] {
@@ -109,7 +108,7 @@ wa-drawer::part(dialog){
 .profile-image{
     width: 240px;
     height: 240px;
-    border-radius: 50%;
+    border-radius: 120px;
 }
 .profile-wrapper{
     display: flex;
@@ -167,7 +166,7 @@ wa-card{
 .avatar img {
   width: 60px;
   aspect-ratio: 1;
-  border-radius: 50%;
+  border-radius: 30px;
 }
 
 wa-card::part(body){
@@ -205,9 +204,26 @@ wa-card::part(header){
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  max-width: 300px;
+  max-width: 200px;
 }
 
 .chatListItem-id-wrapper{
     max-width: 200px;
+}
+
+
+.profile-pill-name{
+    font-weight: 700;    
+    font-size: large;
+}
+
+
+
+.profile-pill-text-wrapper{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: flex-start;
+    align-items: flex-start;
+    line-height: normal;
 }
