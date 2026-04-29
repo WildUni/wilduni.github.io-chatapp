@@ -25,10 +25,15 @@
     </wa-tab-group>
 
     <div slot='navigation-footer'>
-        <div class="profile-pill">
+        <!-- <div class="profile-pill">
             <img :src="profileImageUrl" style="width: 30px;">
             <div>{{profileName}}</div>
-        </div>
+        </div> -->
+
+        <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
+            <img :src="profileImageUrl" class="profile-pill-avatar" slot="start"/>
+            <h1>{{profileName}}</h1>
+        </wa-button>
     </div>
 
     <div slot="main-header">
@@ -37,7 +42,6 @@
         
     </div>
     <div slot="aside">
-        <!-- <Profile></Profile> -->
         <button @click="$graffiti.logout($graffitiSession.value)">
             Log Out
         </button>
@@ -47,7 +51,7 @@
         <ChatInput></ChatInput>
     </div>
 
-
+    
     <main>
         <section v-if="activeChatId">
             <ChatFlow/>

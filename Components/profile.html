@@ -1,8 +1,24 @@
-<h1>Profile</h1>
-<img v-if="profileImageUrl" :src="profileImageUrl" style="max-width: 100px;"/>
+<!-- <img v-if="profileImageUrl" :src="profileImageUrl" style="max-width: 100px;"/>
 <input type="file" @change="handleFileUpload" accept="image/*"/>
-
 <p>ProfileName:<input v-model="editedName"></p>
-<p>ProfileBio:<input v-model="editedBio"></p>
-<button @click="saveChanges">Save</button>
+<p>ProfileBio:<input v-model="editedBio"></p> -->
 
+
+
+<wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
+    <div class="profile-wrapper">
+        <img v-if="profileImageUrl" :src="profileImageUrl" class="profile-image"/>
+        <div class="profile-info-wrapper">
+            <div class="profile-text-info">
+                <h2>Username: </h2>
+                <p><input v-model="editedName"></p>
+            </div>
+            <div class="profile-text-info">
+                <h2>Bio: </h2>
+                <p><textarea v-model="editedBio"></p>
+            </div>
+            <!-- <button @click="saveChanges">Save</button> -->
+        </div> 
+    </div>
+    <wa-button slot="footer" variant="brand" @click=saveChanges>Save</wa-button>
+</wa-drawer>
