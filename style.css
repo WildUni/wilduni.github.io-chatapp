@@ -45,7 +45,12 @@ ul{
 
 .inputContainer{
     display: flex;
+    gap: 16px;
+    width: 100%;
 
+}
+.message-input{
+    flex:1
 }
 
 .profile-pill{

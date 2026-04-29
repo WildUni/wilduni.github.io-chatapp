@@ -16,7 +16,7 @@ function setup() {
     const {activeChatId} = storeToRefs(chatStore);
 
     function chatMessageChannels() {
-      return activeChatId.value == null ? [] : [`Chat:${activeChatId.value}:Messages`];
+      return activeChatId.value == null ? [] : [`chat:${activeChatId.value}:Messages`];
     }
     
     const { objects: chatMessages } = useGraffitiDiscover(

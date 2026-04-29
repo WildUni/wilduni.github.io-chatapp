@@ -41,6 +41,7 @@ function setup() {
         // console.log('message posted')
 
         myMessage.value = "";
+        console.log(`chat:${activeChatId.value}:Messages`)
     }
     return {
         myMessage,

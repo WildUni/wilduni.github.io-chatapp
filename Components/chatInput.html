@@ -4,6 +4,7 @@
     with-clear 
     :value='myMessage' 
     @input="myMessage = $event.target.value"
-    @keydown.enter="sendMessage"></wa-input>
+    @keydown.enter="sendMessage" 
+    class="message-input"></wa-input>
     <button @click="sendMessage">Send</button>
 </div>
