@@ -16,6 +16,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeChatRootId = ref(null);
 
   const newChatName = ref('');
+  const joinChatId = ref('')
 
 
   async function createNewChat(parent = null, root = null){

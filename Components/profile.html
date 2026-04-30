@@ -1,15 +1,15 @@
 
 <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
-            <img :src="profileImageUrl" class="profile-pill-avatar" slot="start"/>
-            <div class="profile-pill-text-wrapper">
-                <div class="profile-pill-name">
-                    {{profileName}}
-                </div>
-                <div>
-                    (click here to change)
-                </div>
-            </div>
-        </wa-button>
+    <img :src="profileImageUrl" class="profile-pill-avatar" slot="start"/>
+    <div class="profile-pill-text-wrapper">
+        <div class="profile-pill-name">
+            {{profileName}}
+        </div>
+        <div>
+            (click here to change)
+        </div>
+    </div>
+</wa-button>
 <wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
     <div class="profile-wrapper">
         <img v-if="profileImageUrl" :src="profileImageUrl" class="profile-image"/>

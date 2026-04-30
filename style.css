@@ -90,6 +90,11 @@ wa-tab-group[slot="navigation"]::part(base) {
 
 wa-tab-group[slot="navigation"]::part(nav) {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  width: 100%;
 }
 
 wa-tab-group[slot="navigation"]::part(body) {
@@ -237,3 +242,73 @@ wa-card::part(header){
     align-items: flex-start;
     line-height: normal;
 }
+
+
+main{
+    overflow-y: auto;
+    top: 0;
+}
+/* 
+[slot='main-header']{
+    position: sticky;
+    top:0;
+    color:wheat
+} */
+
+wa-page::part(main-header){
+    position:sticky;
+    top: 0;
+    width: 100%;
+    border-bottom: 2px #efefef solid;
+}
+
+wa-page::part(main-footer){
+    position:sticky;
+    bottom: 0;
+    width: 100%;
+    border-top: 2px #efefef solid;
+}
+
+[slot='navigation-header']{
+    border-bottom: 2px #efefef solid;
+    border-right:2px #efefef solid;
+    width: 100%;
+}
+
+[slot='navigation']{
+    border-right:2px #efefef solid;
+}
+[slot='navigation-footer']{
+    border-top:2px #efefef solid;
+    border-right:2px #efefef solid;
+}
+
+wa-tab-group::part(tabs){
+    min-width: 300px;
+    width: 25vw;
+    max-width: 450px;
+}
+.chat-list-actions{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.chat-list-actions wa-button::part(base){
+    width: 32px;
+    height: 32px;
+    color:black;
+    background: transparent;
+    border-radius: 4px;
+}
+.chat-list-actions wa-button::part(base):hover{
+    background: #efefef;
+}
+
+.panel-wrapper{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* .channel-message */

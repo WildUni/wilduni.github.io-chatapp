@@ -5,6 +5,7 @@ import loadChatTree from "../Components/chatTree.js";
 import loadChatInput from "../Components/chatInput.js";
 import loadChatFlow from "../Components/chatFlow.js";
 import loadProfile from "../Components/profile.js"
+import loadCreateChatButton from '../Components/createChat.js'
 
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
@@ -87,6 +88,7 @@ export default async () => ({
     ChatInput: await loadChatInput(),
     ChatFlow: await loadChatFlow(),
     Profile: await loadProfile(),
+    CreateChatButton: await loadCreateChatButton(),
   },
   template: await fetch(new URL("./home.html", import.meta.url)).then((r) =>
     r.text(),

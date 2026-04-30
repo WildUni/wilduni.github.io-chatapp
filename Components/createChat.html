@@ -1,0 +1,40 @@
+
+<wa-button data-drawer="open newChatMenu" class="chat-list-actions" class="create-chat-button">
+    <wa-icon name="pen-to-square" variant="regular" @click='console.log("hey")'></wa-icon>
+</wa-button>
+
+<wa-drawer label="New Message Chanel" id="newChatMenu" placement="top">
+    <wa-tab-group
+        :active="activeTab"
+        @wa-tab-show="activeTab = $event.detail.name">
+
+        <wa-tab panel="newchat">Create New Chat</wa-tab>
+        <wa-tab panel="joinchat">Join Existing Chat </wa-tab>
+
+        <wa-tab-panel name="newchat">
+            <div class="panel-wrapper">
+                <h4>Create you own chat!</h4>
+                <p>Please provide a name for your new chat! Don't worry too much about what
+                    you name it. You will be able to change the chat's name later!
+                </p>
+                <input v-model="newChatName" 
+                placeholder="Name of new chat! (30 characters max.)"
+                maxlength="30"
+                type="text"/>
+            </div>
+        </wa-tab-panel>
+        <wa-tab-panel name="joinchat">
+            <input v-model="newChatName" placeholder="Enter the target chat's id here!"/>
+        </wa-tab-panel>
+    </wa-tab-group>
+    
+    <div v-if="activeTab === 'newchat'" slot="footer">
+        <wa-button variant="brand" @click="createNewChat(activeChatId, activeChatRootId)">Create</wa-button>
+    </div>
+    <div v-else slot="footer">
+        <wa-button variant="brand">Join</wa-button>
+    </div>
+    
+</wa-drawer>
+
+

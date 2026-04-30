@@ -1,19 +1,21 @@
 
 <wa-page>
-     <div slot="navigation-header">
-        <h1>Chats</h1>
-        {{newChatName}}
-        <input 
-        v-model='newChatName'
-        @keydown.enter="createNewChat()"/>
-    </div>
+     <!-- <div slot="navigation"> -->
+                <!-- <button style="padding: 0;" slot="nav">
+                    <wa-icon name="pen-to-square" variant="regular" @click='console.log("hey")'></wa-icon>
+                </button> -->
+    <!-- </div> -->
 
-    <wa-tab-group slot="navigation">
-        <wa-tab panel="chats">Chats</wa-tab>
+    <wa-tab-group slot="navigation" withoutScrollControls>
+        <wa-tab panel="chats">
+            Chats
+        </wa-tab>
+
         <wa-tab
             panel="branches"
-            :disabled.prop="activeChatId == null || activeChatId === ''"
-        >Branches</wa-tab>
+            :disabled.prop="activeChatId == null || activeChatId === ''">
+            Branches
+        </wa-tab>
 
         <wa-tab-panel name="chats">
             <ChatList @update-active-chat="setActiveChat"></ChatList>
@@ -22,6 +24,10 @@
         <wa-tab-panel name="branches">
             <ChatTree @update-active-chat="setActiveChat"></ChatTree>
         </wa-tab-panel>
+
+        <div slot="nav" style="margin-left: auto;">
+            <CreateChatButton></CreateChatButton>
+        </div>
     </wa-tab-group>
 
     <div slot='navigation-footer'>
@@ -35,11 +41,11 @@
 
     <div slot="main-header">
         <div v-if="activeChatId">
-            <h1>Chat Name : {{activeChatName}}</h1>
-            {{newChatName}}
+            <h1>{{activeChatName}}</h1>
+            <!-- {{newChatName}}
             <input 
             v-model='newChatName'
-            @keydown.enter="createNewChat(activeChatId, activeChatRootId)"/>
+            @keydown.enter="createNewChat(activeChatId, activeChatRootId)"/> -->
         </div>
         <h1 v-else>Public Chats</h1>
         
