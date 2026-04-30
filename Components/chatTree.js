@@ -60,7 +60,7 @@ function setup(props, { emit }) {
 
     const chatTree = computed(()=>{
       const chat_to_parent = {}
-      console.log(branches.value)
+      // console.log(branches.value)
       for(const branch of branches.value){
         chat_to_parent[branch.value.chatId] = branch.value.parentChatId;
       }
@@ -114,8 +114,8 @@ function setup(props, { emit }) {
 
 
     function emitUpdateChat(chatId, chatName, rootId) {
-      console.log(chatId, chatName, rootId)
-      console.log(nestedTree.value)
+      // console.log(chatId, chatName, rootId)
+      // console.log(nestedTree.value)
       emit("update-active-chat", chatId, chatName, rootId);
     }
     return {

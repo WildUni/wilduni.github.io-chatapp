@@ -294,16 +294,16 @@ wa-tab-group::part(tabs){
     align-items: center;
 }
 
-.chat-list-actions wa-button::part(base){
+/* .chat-list-actions wa-button::part(base){
     width: 32px;
     height: 32px;
     color:black;
     background: transparent;
     border-radius: 4px;
-}
-.chat-list-actions wa-button::part(base):hover{
-    background: #efefef;
-}
+} */
+/* .chat-list-actions wa-button::part(base):hover{
+    
+} */
 
 .panel-wrapper{
     display: flex;
@@ -311,4 +311,59 @@ wa-tab-group::part(tabs){
     gap: 16px;
 }
 
-/* .channel-message */
+.create-chat-button::part(base){
+    width: 32px;
+    height: 32px;
+    color:black;
+    background: transparent;
+    border-radius: 4px;
+}
+.create-chat-button::part(base):hover{
+    background: #efefef;
+}
+
+.profile-image-upload {
+  cursor: pointer;
+  display: inline-block;
+}
+.profile-image-input {
+  display: none;
+}
+
+.profile-text-info{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 32px;
+  padding-right: 64px;
+}
+
+.no-chat-message{
+    height: 100%;
+    font-size: x-large;
+    color: #696969;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+}
+
+.no-chat-message p{
+    text-align: center;
+}
+
+.tree-with-lines {
+    --indent-guide-width: 1px;
+}
+
+
+.chat-name-wrapper{
+    display: flex;
+    align-items: flex-end;
+}

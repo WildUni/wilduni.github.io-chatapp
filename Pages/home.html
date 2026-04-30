@@ -1,10 +1,33 @@
 
 <wa-page>
-     <!-- <div slot="navigation"> -->
-                <!-- <button style="padding: 0;" slot="nav">
-                    <wa-icon name="pen-to-square" variant="regular" @click='console.log("hey")'></wa-icon>
-                </button> -->
-    <!-- </div> -->
+    <wa-dialog
+        label="Choose a username"
+        :open.prop="!hasProfileName"
+        prevent-close
+        >
+        <p>Please enter an username to continue! </p>
+        <p>This name is used solely for display purposes.</p>
+        <input
+            v-model="firstName"
+            placeholder="Username (20 characters max)"
+            required
+            @keydown.enter="completeOnboarding"
+            maxlength="30"
+        />
+
+        <wa-button
+            slot="footer"
+            variant="brand"
+            @click="completeOnboarding"
+            :disabled.prop="!firstName.trim()"
+        >
+            Continue
+        </wa-button>
+    </wa-dialog>
+
+
+
+
 
     <wa-tab-group slot="navigation" withoutScrollControls>
         <wa-tab panel="chats">
@@ -25,36 +48,44 @@
             <ChatTree @update-active-chat="setActiveChat"></ChatTree>
         </wa-tab-panel>
 
-        <div slot="nav" style="margin-left: auto;">
+        <div slot="nav" style="margin-left: auto;" class="chat-list-actions">
             <CreateChatButton></CreateChatButton>
         </div>
     </wa-tab-group>
 
     <div slot='navigation-footer'>
-        <!-- <div class="profile-pill">
-            <img :src="profileImageUrl" style="width: 30px;">
-            <div>{{profileName}}</div>
-        </div> -->
-
         <Profile></Profile>
     </div>
 
     <div slot="main-header">
-        <div v-if="activeChatId">
+        <div v-if="activeChatId" class="chat-name-wrapper">
             <h1>{{activeChatName}}</h1>
-            <!-- {{newChatName}}
-            <input 
-            v-model='newChatName'
-            @keydown.enter="createNewChat(activeChatId, activeChatRootId)"/> -->
+            <wa-copy-button 
+                :value="activeChatId"
+                copy-label="Click to Copy Chat Id"
+                success-label="Chat Id Copied"
+                error-label="Whoops, your browser doesn't support this!"
+                >
+            </wa-copy-button>
         </div>
-        <h1 v-else>Public Chats</h1>
-        
+        <h1 v-else>Welcome to Chatree!</h1>
+        <wa-button v-if="activeChatId"
+            @click="leaveActiveChat(activeChatId)" 
+            :variant="leaveSuccess ? 'brand' : 'danger'"
+            slot="main-header-actions" 
+            :disabled.prop="isLeaving">
+            <wa-spinner v-if="isLeaving"></wa-spinner>
+            <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
+            {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+        </wa-button>
     </div>
-    <div slot="aside">
+
+    
+    <!-- <div slot="aside">
         <button @click="$graffiti.logout($graffitiSession.value)">
             Log Out
         </button>
-    </div>
+    </div> -->
 
     <div slot="main-footer">
         <ChatInput></ChatInput>

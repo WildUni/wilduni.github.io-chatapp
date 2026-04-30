@@ -14,6 +14,15 @@ function loadComponent(name) {
   return () => import(`./Pages/${name}.js`).then((m) => m.default());
 }
 
+export function delay(ms = 1000) {
+    return new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+}
+
+
+
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [

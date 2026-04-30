@@ -1,30 +1,67 @@
 
 <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
-    <img :src="profileImageUrl" class="profile-pill-avatar" slot="start"/>
+
+    <div v-if="profileImageUrl" slot="start">
+        <img :src="profileImageUrl" class="profile-pill-avatar"/>
+    </div>
+    <div v-else slot="start">
+        <wa-avatar label="User avatar"></wa-avatar>
+    </div>
+    
     <div class="profile-pill-text-wrapper">
         <div class="profile-pill-name">
             {{profileName}}
         </div>
         <div>
-            (click here to change)
+            (click to edit profile)
         </div>
     </div>
 </wa-button>
+
 <wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
-    <div class="profile-wrapper">
-        <img v-if="profileImageUrl" :src="profileImageUrl" class="profile-image"/>
+    <div class="profile-wrapper" >
+        <label class="profile-image-upload" title="Upload a Profile Picture">
+            <img
+                v-if="profileImageUrl"
+                :src="profileImageUrl"
+                class="profile-image"
+            />
+            <div v-else class="profile-image">
+                <wa-avatar label="User avatar" class="profile-image"></wa-avatar>
+            </div>
+
+            <input
+                type="file"
+                accept="image/*"
+                @change="handleFileUpload"
+                class="profile-image-input"
+            />
+        </label>
+
+
         <div class="profile-info-wrapper">
             <div class="profile-text-info">
                 <h6>Displayed Name: </h6>
-                <input v-model="editedName">
+                <input v-model="editedName" required>
             </div>
             <div class="profile-text-info">
                 <h6>Leave a note to others ~ </h6>
-                <textarea v-model="editedBio"></textarea>
+                <textarea v-model="editedBio" placeholder="There is nothing here ~"></textarea>
             </div>
         </div>
     </div>
-    <wa-button slot="footer" variant="brand" @click="saveChanges">Save</wa-button>
+    <div class="profile-footer">
+        <wa-button :variant="saveSuccess ? 'success' : 'brand'"
+            @click="saveChanges" 
+            :disabled.prop ='(profileName=editedName && profileBio==editedBio)||isSaving'>
+            <wa-spinner v-if="isSaving"></wa-spinner>
+            <wa-icon name="check" v-if="saveSuccess"></wa-icon>
+            {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
+        </wa-button>
+    </div>
+    <button slot="footer" @click="$graffiti.logout($graffitiSession.value)">
+        Log Out
+    </button>
 </wa-drawer>
 
 

@@ -1,5 +1,7 @@
 <h3>Branch under current Chat</h3>
-<wa-tree class="tree-with-lines">
+<p>This feature is still under construction!</p>
+<p>It will probably look like this:</p>
+<!-- <wa-tree class="tree-with-lines">
   <TreeNode
     v-for="node in nestedTree"
     :key="node.id"
@@ -7,4 +9,36 @@
     @select-chat="emitUpdateChat"
     expanded
   />
+</wa-tree> -->
+<wa-tree class="tree-with-lines">
+  <wa-tree-item expanded>
+    Design
+    <wa-tree-item expanded>
+      Brand
+      <wa-tree-item>Colors</wa-tree-item>
+      <wa-tree-item>Typography</wa-tree-item>
+      <wa-tree-item>Logo</wa-tree-item>
+    </wa-tree-item>
+    <wa-tree-item>
+      Components
+      <wa-tree-item>Buttons</wa-tree-item>
+      <wa-tree-item>Forms</wa-tree-item>
+      <wa-tree-item>Navigation</wa-tree-item>
+    </wa-tree-item>
+  </wa-tree-item>
+
+  <wa-tree-item expanded>
+    Development
+    <wa-tree-item>Frontend</wa-tree-item>
+    <wa-tree-item>Backend</wa-tree-item>
+    <wa-tree-item>Infrastructure</wa-tree-item>
+  </wa-tree-item>
+
+  <wa-tree-item>
+    Marketing
+    <wa-tree-item>Social Media</wa-tree-item>
+    <wa-tree-item>Email Campaigns</wa-tree-item>
+    <wa-tree-item>Analytics</wa-tree-item>
+  </wa-tree-item>
 </wa-tree>
+

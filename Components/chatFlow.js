@@ -152,7 +152,8 @@ function setup() {
 
     return {
       chatMessages,
-      messagesWithProfiles
+      messagesWithProfiles,
+      activeChatId
     };
 
 

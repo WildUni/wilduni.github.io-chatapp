@@ -6,5 +6,6 @@
     @input="myMessage = $event.target.value"
     @keydown.enter="sendMessage" 
     class="message-input"></wa-input>
-    <button @click="sendMessage">Send</button>
+    <button @click="sendMessage" :disabled="!myMessage.length ||isSending">{{ isSending ? "Sending..." : "Send" }}</button>
 </div>
+<p v-if="sendError" class="error">{{ sendError }}</p>

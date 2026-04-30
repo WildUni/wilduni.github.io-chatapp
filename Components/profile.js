@@ -11,6 +11,16 @@ function setup() {
   const editedName = ref("");
   const editedBio = ref("");
 
+  const isSaving = ref(false);
+  const saveError = ref(false);
+  const saveSuccess = ref(false);
+
+  function delay(ms = 1000) {
+    return new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+  }
+
   // sync when store updates
   watch(profileName, (val) => {
     editedName.value = val;
@@ -22,8 +32,29 @@ function setup() {
 
 
   async function saveChanges(){
-    await userStore.updateProfileName(editedName.value);
-    await userStore.updateProfileBio(editedBio.value);
+
+    if(!editedName.value) return
+
+    isSaving.value = true;
+    saveError.value = false;
+    saveSuccess.value = false;
+    
+    try{
+      await userStore.updateProfileName(editedName.value);
+      await userStore.updateProfileBio(editedBio.value);
+
+
+      await delay();
+      saveSuccess.value = true;
+      setTimeout(() => {
+        saveSuccess.value = false;
+      }, 1500);
+      
+    }catch(e){
+      saveError.value = true
+    }finally{
+      isSaving.value = false
+    }
   }
 
 
@@ -35,6 +66,9 @@ function setup() {
     saveChanges,
     editedName,
     editedBio,
+    isSaving,
+    saveSuccess
+    
   }
 }
 

@@ -17,6 +17,7 @@ import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
+import { delay } from "../index.js";
 
 
 function setup() {
@@ -25,19 +26,31 @@ function setup() {
   const session = useGraffitiSession();
 
   const chatStore = useChatStore();
-  const {activeChatId, activeChatName, newChatName, chatList, activeChatRootId} = storeToRefs(chatStore)
+  const {activeChatId, 
+    activeChatName, 
+    newChatName, 
+    chatList, 
+    activeChatRootId,
+    isLeaving,
+    leaveSuccess} = storeToRefs(chatStore)
   const userStore = useUserStore();
-  const {profileName, profileImageUrl} = storeToRefs(userStore);
+  const {profileName, profileImageUrl, hasProfileName} = storeToRefs(userStore);
 
   function setActiveChat(chatId, chatName, rootId){
     activeChatId.value = chatId;
     activeChatName.value = chatName;
     activeChatRootId.value = rootId ?? chatId;
     router.push({ name: "chat", params: { chatId } })
-    console.log(activeChatRootId.value)
+    // console.log(activeChatRootId.value)
     
   }
 
+  const firstName = ref("");
+
+  async function completeOnboarding() {
+    if (!firstName.value.trim()) return;
+    await userStore.updateProfileName(firstName.value);
+  }
 
   //handles page refresh, extracting id from url + name from id
   watch(
@@ -66,6 +79,12 @@ function setup() {
     console.log(activeChatId.value)
   }
 
+  async function leaveActiveChat(chatId) {
+    await chatStore.leaveChat(chatId);
+    await delay()
+    router.push({ name: "home" });
+  }
+
 
   return {
     setActiveChat,
@@ -77,6 +96,12 @@ function setup() {
     newChatName,
     profileName, 
     profileImageUrl,
+    leaveActiveChat,
+    firstName,
+    hasProfileName,
+    completeOnboarding,
+    isLeaving,
+    leaveSuccess
   }
 }
 

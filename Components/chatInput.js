@@ -14,7 +14,8 @@ function setup() {
     const chatStore = useChatStore();
     const {activeChatId} = storeToRefs(chatStore)
     const myMessage = ref('')
-
+    const isSending = ref(false);
+    const sendError = ref("");
 
     
     async function sendMessage(){
@@ -26,26 +27,37 @@ function setup() {
             console.log('no active chat')
             return
         }
-        await graffiti.post(
-            {
-                value: {
-                    action: "Message",
-                    content: myMessage.value,
-                    published: Date.now(),
-                    user: session.value?.actor
+        isSending.value = true;
+        sendError.value = "";
+        try {
+            await graffiti.post(
+                {
+                    value: {
+                        action: "Message",
+                        content: myMessage.value,
+                        published: Date.now(),
+                        user: session.value?.actor
+                    },
+                    channels: [`chat:${activeChatId.value}:Messages`]
                 },
-                channels: [`chat:${activeChatId.value}:Messages`]
-            },
-            session.value,
-        );
-        // console.log('message posted')
+                session.value,
+            );
 
-        myMessage.value = "";
-        console.log(`chat:${activeChatId.value}:Messages`)
+            myMessage.value = "";
+            // console.log(`chat:${activeChatId.value}:Messages`)
+        } catch (err) {
+            sendError.value = "Message failed to send.";
+        } finally {
+            isSending.value = false;
+        }
     }
+
+
     return {
         myMessage,
         sendMessage,
+        isSending,
+        sendError,
      };
 }
 

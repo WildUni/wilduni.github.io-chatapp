@@ -1,8 +1,25 @@
-<ul class='chatflow-wrapper'>
-    <li v-for="msg in messagesWithProfiles"> 
-        <Message :username="msg.profile?.name" 
-        :message-content="msg.value.content" 
-        :avatarUrl="msg.profile?.avatarUrl" 
-        :published="msg.value.published"/>
-    </li>
-</ul>
+
+
+
+<div v-if="messagesWithProfiles.length">
+    <ul class='chatflow-wrapper'>
+        <li v-for="msg in messagesWithProfiles"> 
+            <Message :username="msg.profile?.name" 
+            :message-content="msg.value.content" 
+            :avatarUrl="msg.profile?.avatarUrl" 
+            :published="msg.value.published"/>
+        </li>
+    </ul>
+</div>
+<div v-else class="empty-chatflow-wrapper">
+    <div v-if="activeChatId" class="no-chat-message">
+        <p>No message activities yet...</p>
+        <p>You can be the one to send the first message!</p>
+    </div>
+    <div v-else class="no-chat-message">
+        <p>Select a chat from the left panel to start chatting!</p>
+        <p>If you don't have any, this is your chance to create your first chat, or join 
+        your friend's chat!</p>
+    </div>
+    
+</div>

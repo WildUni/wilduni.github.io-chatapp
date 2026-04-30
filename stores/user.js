@@ -68,17 +68,19 @@ export const useUserStore = defineStore("user", () => {
 
   const profileName = computed(() =>{
     // console.log(userInformation.value.ProfileName.value)
-    return userInformation.value.ProfileName?.value?.name ?? 'null'
+    return userInformation.value.ProfileName?.value?.name ?? null
   }
   );
 
   const profileBio = computed(() =>
-    userInformation.value.ProfileBio?.value?.content ?? "null"
+    userInformation.value.ProfileBio?.value?.content ?? null
   );
 
 
   //update functions for posting
   async function updateProfileName(name){
+    const trimmed = name.trim();
+    if (!trimmed) return;
     graffiti.post({
       value:{
         user:session.value.actor,
@@ -144,6 +146,10 @@ export const useUserStore = defineStore("user", () => {
     event.target.value = "";
   }
 
+  const hasProfileName = computed(() =>
+    !!profileName.value?.trim()
+  );
+
   return{
     profileName,
     profileImageUrl,
@@ -151,7 +157,8 @@ export const useUserStore = defineStore("user", () => {
     handleFileUpload,
     updateProfileImage,
     updateProfileName,
-    updateProfileBio
+    updateProfileBio,
+    hasProfileName
   }
 
 })

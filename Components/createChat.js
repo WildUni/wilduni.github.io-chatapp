@@ -1,15 +1,52 @@
 import { ref, computed, watch } from "vue";
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
-
+import { delay } from "../index.js";
 function setup() {
     const chatStore = useChatStore();
-    const {newChatName, createNewChat} = storeToRefs(chatStore);
-    const activeTab = ref('newchat')
+    const {newChatName, 
+        createNewChat, 
+        joinChatId, 
+        isCreating,
+        createError, 
+        createSuccess,
+        isJoining, 
+        joinError, 
+        joinSuccess,
+        activeChatId, 
+        activeChatRootId,
+        } = storeToRefs(chatStore);
+    const activeTab = ref('newchat');
+    function closeDrawer() {
+        document.querySelector("#newChatMenu").open = false;
+    }
+    async function handleCreateChat() {
+        const success = await chatStore.createNewChat();
+        if (success){ 
+            await delay()
+            closeDrawer();
+        }
+    }
+    async function handleJoinChat() {
+        const success = await chatStore.joinChat();
+        if (success){ 
+            await delay()
+            closeDrawer();
+        }
+    }
     return{
         newChatName,
-        createNewChat:chatStore.createNewChat,
-        activeTab
+        activeTab,
+        joinChatId,
+        isCreating,
+        createError,
+        createSuccess,
+        isJoining,
+        joinError,
+        joinSuccess,
+        handleCreateChat,
+        handleJoinChat,
+        
     }
 }
 
