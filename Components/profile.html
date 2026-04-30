@@ -53,7 +53,7 @@
     <div class="profile-footer">
         <wa-button :variant="saveSuccess ? 'success' : 'brand'"
             @click="saveChanges" 
-            :disabled.prop ='(profileName=editedName && profileBio==editedBio)||isSaving'>
+            :disabled.prop ='(profileName===editedName && profileBio===editedBio)||isSaving'>
             <wa-spinner v-if="isSaving"></wa-spinner>
             <wa-icon name="check" v-if="saveSuccess"></wa-icon>
             {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
