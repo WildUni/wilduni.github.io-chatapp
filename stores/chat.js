@@ -1,4 +1,7 @@
-import { ref, computed, watch} from "vue";
+// ============================================================
+// IMPORTS - Core Dependencies
+// ============================================================
+import { ref, computed, watch } from "vue";
 import { defineStore } from "pinia";
 import {
   useGraffiti,
@@ -6,143 +9,180 @@ import {
   useGraffitiDiscover
 } from "@graffiti-garden/wrapper-vue";
 
-
+// ============================================================
+// PINIA STORE - Chat State Management
+// ============================================================
 export const useChatStore = defineStore("chat", () => {
+  // Access Graffiti API and user session
   const graffiti = useGraffiti();
   const session = useGraffitiSession();
 
-
+  // ============================================================
+  // STATE - Active Chat Information
+  // ============================================================
+  
+  // Track the currently opened chat
   const activeChatId = ref(null);
   const activeChatName = ref(null);
   const activeChatRootId = ref(null);
 
+  // ============================================================
+  // STATE - Chat Creation & Joining
+  // ============================================================
+  
+  // Form inputs for creating and joining chats
   const newChatName = ref('');
   const joinChatId = ref('');
 
 
-
+  // ============================================================
+  // STATE - Operation Status & Feedback
+  // ============================================================
+  
+  // Chat creation operation status
   const isCreating = ref(false);
   const createError = ref(false);
-  const createSuccess = ref(false)
+  const createSuccess = ref(false);
+  
+  // Chat joining operation status
   const isJoining = ref(false);
   const joinError = ref(false);
-  const joinSuccess = ref(false)
+  const joinSuccess = ref(false);
+  
+  // Chat leaving operation status
   const isLeaving = ref(false);
   const leaveError = ref(false);
-  const leaveSuccess = ref(false)
+  const leaveSuccess = ref(false);
+
+  // ============================================================
+  // ACTIONS - Create New Chat
+  // ============================================================
+  
+  /**
+   * Creates a new chat room and posts membership to Graffiti
+   * @param {string|null} parent - Parent chat ID for nested chats (optional)
+   * @param {string|null} root - Root chat ID for threading (optional)
+   * @returns {boolean} Success status of chat creation
+   */
+  async function createNewChat(parent = null, root = null) {
+    // Validate chat name is provided
+    if (!newChatName.value) {
+      return false;
+    }
+
+    // Reset status flags
+    isCreating.value = true;
+    createError.value = false;
+    createSuccess.value = false;
+
+    // Generate unique IDs for chat hierarchy
+    const chatId = crypto.randomUUID();
+    const parentChatId = parent ? parent : chatId;
+    const rootChatId = root ? root : chatId;
 
 
-
-  async function createNewChat(parent = null, root = null){
-      if(!newChatName.value){
-        return false
-      }
-
-
-      isCreating.value = true;
-      createError.value = false;
-      createSuccess.value = false;
-
-
-      const chatId = crypto.randomUUID();
-      const parentChatId = parent ? parent : chatId 
-      const rootChatId = root ? root : chatId
-      
-
-
-      try {
-        
-        if(!root){
-          //membership to user channel
-          await graffiti.post(
-            {
-              value:{
-                action: 'Membership',
-                value: 'Join',
-                chatId: chatId, 
-                chatName: newChatName.value,
-                published: Date.now(),
-              },
-              channels: [`user:${session.value.actor}:Membership`],
-              allowed: []
-            },
-            session.value      
-          )
-
-          //posted to chat activity + Descendants
-          await graffiti.post(
-            {
-              value:{
-                action: 'Create',
-                chatId: chatId, 
-                chatName: newChatName.value,
-                published: Date.now(),
-                parentChatId: parentChatId,
-                rootChatId: rootChatId,
-              },
-              channels: [`chat:${chatId}:Activities`],
-            },
-            session.value      
-          )
-          //posted to chat membership
-          await graffiti.post(
-            {
-              value:{
-                action: 'Membership',
-                value: 'Join',
-                user: session.value.actor,
-                published: Date.now(),
-              },
-              channels: [`chat:${chatId}:Membership`],
-            },
-            session.value      
-          )
-        }
-
+    try {
+      // Only perform full setup if this is a root-level chat (not a child)
+      if (!root) {
+        // 1. Post membership record to user's channel (user learns about new chat)
         await graffiti.post(
           {
-            value:{
+            value: {
+              action: 'Membership',
+              value: 'Join',
+              chatId: chatId,
+              chatName: newChatName.value,
+              published: Date.now(),
+            },
+            channels: [`user:${session.value.actor}:Membership`],
+            allowed: []
+          },
+          session.value
+        );
+
+        // 2. Post creation activity to chat channel (chat activity log)
+        await graffiti.post(
+          {
+            value: {
               action: 'Create',
-              chatId: chatId, 
-              name: newChatName.value,
+              chatId: chatId,
+              chatName: newChatName.value,
               published: Date.now(),
               parentChatId: parentChatId,
               rootChatId: rootChatId,
             },
-            channels: [`chat:${rootChatId}:Descendants`],
+            channels: [`chat:${chatId}:Activities`],
           },
-          session.value      
-        )
-        createSuccess.value = true
-        setTimeout(() => {
-          createSuccess.value = false;
-        }, 1500);
-        
-        newChatName.value = "";
+          session.value
+        );
 
-      }catch (err) {
-        createError.value = true;
-      } finally{
-        isCreating.value = false;
+        // 3. Post user membership to chat channel (chat learns about user)
+        await graffiti.post(
+          {
+            value: {
+              action: 'Membership',
+              value: 'Join',
+              user: session.value.actor,
+              published: Date.now(),
+            },
+            channels: [`chat:${chatId}:Membership`],
+          },
+          session.value
+        );
       }
-      return !createError.value
-      
+
+      // Post chat creation to root chat's descendants channel (for threaded chats)
+      await graffiti.post(
+        {
+          value: {
+            action: 'Create',
+            chatId: chatId,
+            name: newChatName.value,
+            published: Date.now(),
+            parentChatId: parentChatId,
+            rootChatId: rootChatId,
+          },
+          channels: [`chat:${rootChatId}:Descendants`],
+        },
+        session.value
+      );
+
+      // Show success message and clear input
+      createSuccess.value = true;
+      setTimeout(() => {
+        createSuccess.value = false;
+      }, 1500);
+
+      newChatName.value = "";
+
+    } catch (err) {
+      createError.value = true;
+    } finally {
+      isCreating.value = false;
+    }
+
+    return !createError.value;
   }
 
-  //computing chatlist based on user activity
+  // ============================================================
+  // COMPUTED - Chat List (User's Active Chats)
+  // ============================================================
+  
+  // Subscribe to user's membership activity channel
   const channels = computed(() => {
     return session.value ? [`user:${session.value.actor}:Membership`] : [];
   });
 
-  const {objects: activities} =  useGraffitiDiscover(
+  // Discover all membership activities from Graffiti
+  const { objects: activities } = useGraffitiDiscover(
     channels,
     {
-      properties:{
+      properties: {
         value: {
           required: ['action', 'value', 'chatId', 'published'],
           properties: {
-            action: { type: 'string'},
-            value: { type: 'string' },
+            action: { type: 'string' },
+            value: { type: 'string' }, // 'Join' or 'Leave'
             chatId: { type: 'string' },
             chatName: { type: 'string' },
             published: { type: 'number' },
@@ -152,9 +192,15 @@ export const useChatStore = defineStore("chat", () => {
     },
     session,
     true
-  )
+  );
 
+  /**
+   * Compute list of active chats for the current user
+   * Filters to only show chats where the latest action is 'Join'
+   * (effectively hides left/deleted chats)
+   */
   const chatList = computed(() => {
+    // Find the most recent membership record for each chat
     const latestByChat = activities.value.reduce((acc, obj) => {
       const { chatId, published } = obj.value;
 
@@ -162,6 +208,7 @@ export const useChatStore = defineStore("chat", () => {
 
       const existing = acc[chatId];
 
+      // Keep only the most recent activity for each chat
       if (!existing || existing.value.published < published) {
         acc[chatId] = obj;
       }
@@ -169,29 +216,39 @@ export const useChatStore = defineStore("chat", () => {
       return acc;
     }, {});
 
-    // keep only chats where latest action is "Join"
+    // Filter to only show chats where user is currently joined
     const ret = Object.values(latestByChat).filter(
       chat => chat.value.value === 'Join'
     );
 
-    // console.log(ret)
-    return ret
+    return ret;
   });
 
 
-  async function joinChat(){
+  // ============================================================
+  // ACTIONS - Join Existing Chat
+  // ============================================================
+  
+  /**
+   * Join an existing chat by its ID
+   * Validates chat exists before adding user to membership
+   * @returns {boolean} Success status of join operation
+   */
+  async function joinChat() {
+    // Validate user is logged in and chat ID is provided
+    if (!session.value.actor || !joinChatId.value) return false;
 
-    if(!session.value.actor || !joinChatId.value) return false;
+    // Reset status flags
     isJoining.value = true;
     joinError.value = false;
     joinSuccess.value = false;
 
-    try{
-      //gets chat activity log to see if chat exists
-      const {objects: activities} =  useGraffitiDiscover(
-        ()=>[`chat:${joinChatId.value}:Activities`],
+    try {
+      // Check if chat exists by querying its activity log
+      const { objects: activities } = useGraffitiDiscover(
+        () => [`chat:${joinChatId.value}:Activities`],
         {
-          properties:{
+          properties: {
             value: {
               required: ['action', 'chatId', 'chatName', 'published', 'parentChatId', 'rootChatId'],
               properties: {
@@ -200,15 +257,19 @@ export const useChatStore = defineStore("chat", () => {
                 chatId: { type: 'string' },
                 chatName: { type: 'string' },
                 published: { type: 'number' },
-                rootChatId: { type: 'string'}
+                rootChatId: { type: 'string' }
               }
             }
           },
         },
         session,
         true
-      )
+      );
 
+      /**
+       * Wait for activities to load (with timeout)
+       * Resolves with activities or empty array if timeout
+       */
       function waitForActivities(timeout = 2000) {
         return new Promise(resolve => {
           const stop = watch(activities, (val) => {
@@ -220,30 +281,37 @@ export const useChatStore = defineStore("chat", () => {
 
           setTimeout(() => {
             stop();
-            resolve([]); // treat as no chat
+            resolve([]); // Treat timeout as no chat found
           }, timeout);
         });
       }
 
+      /**
+       * Check if chat exists by finding a Create action
+       */
       async function checkChatExists() {
         const acts = await waitForActivities();
 
+        // Find the most recent activity
         let latest = null;
         for (const obj of acts) {
           if (!latest || latest.value.published < obj.value.published) {
             latest = obj;
           }
         }
-        return latest?.value.action === 'Create' ? latest: null;
+
+        // Return chat only if latest action is 'Create' (not deleted)
+        return latest?.value.action === 'Create' ? latest : null;
       }
 
+      // Validate chat exists
       const chat = await checkChatExists();
 
-      if(chat != null){
-        //posting to chat membership channel
+      if (chat != null) {
+        // 1. Post join membership to chat's membership channel
         await graffiti.post(
           {
-            value:{
+            value: {
               action: 'Membership',
               value: 'Join',
               user: session.value.actor,
@@ -251,56 +319,69 @@ export const useChatStore = defineStore("chat", () => {
             },
             channels: [`chat:${joinChatId.value}:Membership`],
           },
-          session.value      
-        )
+          session.value
+        );
 
-        //posting to user membership channel
+        // 2. Post join membership to user's membership channel
         await graffiti.post(
           {
-            value:{
+            value: {
               action: 'Membership',
               value: 'Join',
-              chatId: joinChatId.value, 
+              chatId: joinChatId.value,
               chatName: chat.value.chatName,
               published: Date.now(),
             },
             channels: [`user:${session.value.actor}:Membership`],
             allowed: []
           },
-          session.value      
-        )
-        joinSuccess.value = true
+          session.value
+        );
+
+        // Show success and clear input
+        joinSuccess.value = true;
         setTimeout(() => {
           joinSuccess.value = false;
         }, 1500);
-        joinChatId.value = ''
-      }
-      else {
+        joinChatId.value = '';
+      } else {
+        // Chat doesn't exist or was deleted
         joinError.value = true;
       }
-    }catch (err) {
+    } catch (err) {
       joinError.value = true;
-    } finally{
+    } finally {
       isJoining.value = false;
     }
-    return !joinError.value
+
+    return !joinError.value;
   }
 
 
+  // ============================================================
+  // ACTIONS - Leave Chat
+  // ============================================================
+  
+  /**
+   * Leave an existing chat
+   * Posts leave action to membership channels and clears active chat state
+   * @param {string|null} chatId - ID of chat to leave
+   * @returns {boolean} Success status of leave operation
+   */
   async function leaveChat(chatId = null) {
-    // console.log('called')
-
+    // Reset status flags
     isLeaving.value = true;
     leaveError.value = false;
     leaveSuccess.value = false;
-    
-    if(!session.value.actor || chatId === null) return false
 
-    // Post leave action to chat membership channel
-    try{
+    // Validate user is logged in and chat ID is provided
+    if (!session.value.actor || chatId === null) return false;
+
+    try {
+      // 1. Post leave action to chat's membership channel
       await graffiti.post(
         {
-          value:{
+          value: {
             action: 'Membership',
             value: 'Leave',
             user: session.value.actor,
@@ -309,12 +390,12 @@ export const useChatStore = defineStore("chat", () => {
           channels: [`chat:${chatId}:Membership`],
         },
         session.value
-      )
+      );
 
-      // Post leave action to user membership channel
+      // 2. Post leave action to user's membership channel
       await graffiti.post(
         {
-          value:{
+          value: {
             action: 'Membership',
             value: 'Leave',
             chatId: chatId,
@@ -324,50 +405,63 @@ export const useChatStore = defineStore("chat", () => {
           allowed: []
         },
         session.value
-      )
+      );
 
-      // Clear active chat if leaving the current one
-      if(activeChatId.value === chatId) {
+      // Clear active chat state if leaving the currently open chat
+      if (activeChatId.value === chatId) {
         activeChatId.value = null;
         activeChatName.value = null;
         activeChatRootId.value = null;
       }
 
-      leaveSuccess.value = true
+      // Show success message
+      leaveSuccess.value = true;
       setTimeout(() => {
         leaveSuccess.value = false;
       }, 1500);
-    }catch (err) {
-        leaveError.value = true;
-    } finally{
+    } catch (err) {
+      leaveError.value = true;
+    } finally {
       isLeaving.value = false;
     }
-    return !leaveError.value
+
+    return !leaveError.value;
   }
 
-
-
-
+  // ============================================================
+  // EXPORTS - Store API
+  // ============================================================
+  
+  // Return public API for use in components
   return {
-      activeChatId,
-      activeChatName,
-      activeChatRootId,
-      newChatName,
-      createNewChat,
-      chatList,
-      leaveChat,
-      joinChat,
-      joinChatId,
-      isCreating,
-      isJoining,
-      isLeaving,
-      createError,
-      joinError,
-      leaveError,
-      createSuccess,
-      joinSuccess,
-      leaveSuccess
-  }
+    // Active chat state
+    activeChatId,
+    activeChatName,
+    activeChatRootId,
+
+    // Chat list
+    chatList,
+
+    // Create chat
+    newChatName,
+    createNewChat,
+    isCreating,
+    createError,
+    createSuccess,
+
+    // Join chat
+    joinChatId,
+    joinChat,
+    isJoining,
+    joinError,
+    joinSuccess,
+
+    // Leave chat
+    leaveChat,
+    isLeaving,
+    leaveError,
+    leaveSuccess
+  };
 });
 
 

@@ -1,19 +1,44 @@
-*{
-    margin: 0;
-    box-sizing: border-box;
+/* ============================================================
+   GLOBAL STYLES - Base & Reset
+   ============================================================ */
+
+* {
+  margin: 0;
+  box-sizing: border-box;
 }
+
+/* ============================================================
+   ROUTER & NAVIGATION
+   ============================================================ */
 
 a.router-link-active {
-    color: black;
-    text-decoration: none;
+  color: black;
+  text-decoration: none;
 }
 
-ul{
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+/* ============================================================
+   LAYOUT UTILITIES - Flexbox Helpers
+   ============================================================ */
+
+ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   CHAT LIST - List Item Styling
+   ============================================================ */
 
 .chat-list-item {
   display: flex;
@@ -26,52 +51,227 @@ ul{
   border-radius: 8px;
 }
 
-.chat-list-item:hover{
-    background-color: #efefef;
+.chat-list-item:hover {
+  background-color: #efefef;
 }
 
-.selected{
-    background-color: #efefef;
+.selected {
+  background-color: #efefef;
 }
 
-.flex-col{
-    display: flex;
-    flex-direction: column;
+.chatListItem-wrapper {
+  display: flex;
+  flex-direction: column;
 }
 
-.flex{
-    display: flex;
+.chatListItem-name {
+  font-weight: 700;
+  font-size: larger;
+  letter-spacing: 0.02em;
 }
 
-.inputContainer{
-    display: flex;
-    gap: 16px;
-    width: 100%;
-
-}
-.message-input{
-    flex:1
+.chatListItem-id {
+  color: #696969;
 }
 
-.profile-pill{
-    min-height:10vh;
-}
-.profile-pill::part(base){
-    height: 100%;
-    display: flex;
-    justify-content: flex-start;
-    gap: 16px;
+.chatListItem-id-wrapper {
+  max-width: 200px;
 }
 
-.profile-pill:hover{
-    background-color: #efefef;
-}
-.profile-pill-avatar{
-    width: 60px;
-    aspect-ratio: 1;
-    border-radius: 64px;
+.fade-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
+.chat-list-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.create-chat-button::part(base) {
+  width: 32px;
+  height: 32px;
+  color: black;
+  background: transparent;
+  border-radius: 4px;
+}
+
+.create-chat-button::part(base):hover {
+  background: #efefef;
+}
+
+/* ============================================================
+   INPUT FIELDS - Form & Message Input
+   ============================================================ */
+
+.inputContainer {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.message-input {
+  flex: 1;
+}
+
+.profile-info-wrapper input {
+  width: 40vw;
+}
+
+.profile-info-wrapper textarea {
+  width: 40vw;
+  min-height: 20vh;
+  max-height: 20vh;
+}
+
+/* ============================================================
+   PROFILE - Avatar & Profile Styling
+   ============================================================ */
+
+.profile-pill {
+  min-height: 10vh;
+}
+
+.profile-pill::part(base) {
+  height: 100%;
+  display: flex;
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+.profile-pill:hover {
+  background-color: #efefef;
+}
+
+.profile-pill-avatar {
+  width: 60px;
+  aspect-ratio: 1;
+  border-radius: 64px;
+}
+
+.profile-pill-name {
+  font-weight: 700;
+  font-size: large;
+}
+
+.profile-pill-text-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  line-height: normal;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+}
+
+.avatar img {
+  width: 60px;
+  aspect-ratio: 1;
+  border-radius: 30px;
+}
+
+.profile-image {
+  width: 240px;
+  height: 240px;
+  border-radius: 120px;
+}
+
+.profile-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: min(8vw, 8vh);
+  align-items: center;
+}
+
+.profile-info-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: min(4vw, 4vh);
+}
+
+.profile-text-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-image-upload {
+  cursor: pointer;
+  display: inline-block;
+}
+
+.profile-image-input {
+  display: none;
+}
+
+.profile-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 32px;
+  padding-right: 64px;
+}
+
+/* ============================================================
+   MESSAGES - Message Display & Card Styling
+   ============================================================ */
+
+.message-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+wa-card {
+  min-width: 300px;
+  min-height: 60px;
+}
+
+wa-card::part(body) {
+  padding-top: 0;
+  padding-bottom: 8px;
+  border-top: 0;
+}
+
+wa-card::part(header) {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.message-header {
+  display: flex;
+  gap: 16px;
+}
+
+.message-header-name {
+  font-weight: 500;
+}
+
+.message-header-date {
+  color: #696969;
+}
+
+.chatflow-wrapper {
+  display: flex;
+  gap: 16px;
+}
+
+.chat-name-wrapper {
+  display: flex;
+  align-items: flex-end;
+}
+
+/* ============================================================
+   PAGE LAYOUT - Web Awesome Components
+   ============================================================ */
+
+/* Tab Group Navigation Container */
 wa-tab-group[slot="navigation"] {
   height: 100%;
   min-height: 0;
@@ -103,100 +303,96 @@ wa-tab-group[slot="navigation"]::part(body) {
   overflow-y: auto;
 }
 
-
-wa-drawer::part(dialog){
-    min-width: 400px;
-    width: 70vw;
-    height: 80vh;
-    margin: 10vh 15vw;
-    border-radius: 16px;
+wa-tab-group::part(tabs) {
+  min-width: 300px;
+  width: 25vw;
+  max-width: 450px;
 }
 
-wa-drawer::part(header){
-    border-bottom: 2px solid #efefef;
-}
-wa-drawer::part(footer){
-    padding-top:12px;
-    border-top: 2px solid #efefef;
-}
-
-
-.profile-image{
-    width: 240px;
-    height: 240px;
-    border-radius: 120px;
-}
-.profile-wrapper{
-    display: flex;
-    justify-content: center;
-    gap: min(8vw, 8vh);
-    align-items: center;
+/* Page Layout Sections */
+wa-page::part(main-header) {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  border-bottom: 2px #efefef solid;
 }
 
-.profile-info-wrapper{
-    display: flex;
-    flex-direction: column;
-    gap: min(4vw, 4vh);
+wa-page::part(main-footer) {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  border-top: 2px #efefef solid;
 }
 
-.profile-info-wrapper input{
-    width: 40vw;
-}
-.profile-info-wrapper textarea{
-    width: 40vw;
-    min-height: 20vh;
-    max-height: 20vh;
+main {
+  overflow-y: auto;
+  top: 0;
 }
 
-.message-wrapper{
-    display: flex;
-    align-items: center;
-
-    gap: 16px;
+[slot="navigation-header"] {
+  border-bottom: 2px #efefef solid;
+  border-right: 2px #efefef solid;
+  width: 100%;
 }
 
-wa-card{
-    min-width: 300px;
-    min-height: 60px;
+[slot="navigation"] {
+  border-right: 2px #efefef solid;
 }
 
-.message-header{
-    display: flex;
-    gap:16px
+[slot="navigation-footer"] {
+  border-top: 2px #efefef solid;
+  border-right: 2px #efefef solid;
 }
 
-.message-header-name{
-    font-weight: 500;
+/* Drawer (Modal) Styling */
+wa-drawer::part(dialog) {
+  min-width: 400px;
+  width: 70vw;
+  height: 80vh;
+  margin: 10vh 15vw;
+  border-radius: 16px;
 }
 
-.message-header-date{
-    color: #696969;
+wa-drawer::part(header) {
+  border-bottom: 2px solid #efefef;
 }
 
-
-.avatar{
-    display: flex;
-    align-items: center;
-}
-.avatar img {
-  width: 60px;
-  aspect-ratio: 1;
-  border-radius: 30px;
+wa-drawer::part(footer) {
+  padding-top: 12px;
+  border-top: 2px solid #efefef;
 }
 
-wa-card::part(body){
-    padding-top:0;
-    padding-bottom: 8px;
-    border-top:0
-}
-wa-card::part(header){
-    border-bottom: 0;
-    padding-bottom: 0;
+/* ============================================================
+   STATES & MESSAGES
+   ============================================================ */
+
+.no-chat-message {
+  height: 100%;
+  font-size: x-large;
+  color: #696969;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
 }
 
-.chatflow-wrapper{
-    display: flex;
-    gap:16px;
+.no-chat-message p {
+  text-align: center;
+}
+
+.panel-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ============================================================
+   TREE & CHAT VISUALIZATION
+   ============================================================ */
+
+.tree-with-lines {
+  --indent-guide-width: 1px;
 }
 
 
