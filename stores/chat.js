@@ -82,70 +82,79 @@ export const useChatStore = defineStore("chat", () => {
 
 
     try {
+      const now = Date.now();
+      const postOperations = [];
+
       // Only perform full setup if this is a root-level chat (not a child)
       if (!root) {
-        // 1. Post membership record to user's channel (user learns about new chat)
-        await graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Join',
-              chatId: chatId,
-              chatName: newChatName.value,
-              published: Date.now(),
+        // Collect all posts for root-level chat setup
+        postOperations.push(
+          // 1. Post membership record to user's channel
+          graffiti.post(
+            {
+              value: {
+                action: 'Membership',
+                value: 'Join',
+                chatId: chatId,
+                chatName: newChatName.value,
+                published: now,
+              },
+              channels: [`user:${session.value.actor}:Membership`],
+              allowed: []
             },
-            channels: [`user:${session.value.actor}:Membership`],
-            allowed: []
-          },
-          session.value
+            session.value
+          ),
+          // 2. Post creation activity to chat channel
+          graffiti.post(
+            {
+              value: {
+                action: 'Create',
+                chatId: chatId,
+                chatName: newChatName.value,
+                published: now,
+                parentChatId: parentChatId,
+                rootChatId: rootChatId,
+              },
+              channels: [`chat:${chatId}:Activities`],
+            },
+            session.value
+          ),
+          // 3. Post user membership to chat channel
+          graffiti.post(
+            {
+              value: {
+                action: 'Membership',
+                value: 'Join',
+                user: session.value.actor,
+                published: now,
+              },
+              channels: [`chat:${chatId}:Membership`],
+            },
+            session.value
+          )
         );
+      }
 
-        // 2. Post creation activity to chat channel (chat activity log)
-        await graffiti.post(
+      // Post chat creation to root chat's descendants channel
+      postOperations.push(
+        graffiti.post(
           {
             value: {
               action: 'Create',
               chatId: chatId,
-              chatName: newChatName.value,
-              published: Date.now(),
+              name: newChatName.value,
+              published: now,
               parentChatId: parentChatId,
               rootChatId: rootChatId,
             },
-            channels: [`chat:${chatId}:Activities`],
+            channels: [`chat:${rootChatId}:Descendants`],
           },
           session.value
-        );
-
-        // 3. Post user membership to chat channel (chat learns about user)
-        await graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Join',
-              user: session.value.actor,
-              published: Date.now(),
-            },
-            channels: [`chat:${chatId}:Membership`],
-          },
-          session.value
-        );
-      }
-
-      // Post chat creation to root chat's descendants channel (for threaded chats)
-      await graffiti.post(
-        {
-          value: {
-            action: 'Create',
-            chatId: chatId,
-            name: newChatName.value,
-            published: Date.now(),
-            parentChatId: parentChatId,
-            rootChatId: rootChatId,
-          },
-          channels: [`chat:${rootChatId}:Descendants`],
-        },
-        session.value
+        )
       );
+
+      // Execute all posts in parallel for better performance
+      await Promise.all(postOperations);
 
       // Show success message and clear input
       createSuccess.value = true;
@@ -226,6 +235,53 @@ export const useChatStore = defineStore("chat", () => {
 
 
   // ============================================================
+  // UTILITY - Wait for Graffiti Activities with Timeout
+  // ============================================================
+  
+  /**
+   * Helper to wait for activities to populate with a timeout
+   * Prevents infinite waiting for data that may not load
+   * @param {Array} activities - Reactive activities array to monitor
+   * @param {number} timeout - Milliseconds to wait before resolving empty
+   * @returns {Promise<Array>} Resolves with activities or empty array
+   */
+  function waitForActivities(activities, timeout = 2000) {
+    return new Promise(resolve => {
+      const stop = watch(activities, (val) => {
+        if (val.length > 0) {
+          stop();
+          resolve(val);
+        }
+      }, { immediate: true });
+
+      const timer = setTimeout(() => {
+        stop();
+        resolve([]);
+      }, timeout);
+    });
+  }
+
+  /**
+   * Find the most recent Create action in activities
+   * Returns null if latest action is Delete (chat was deleted)
+   * @param {Array} activities - Array of activity objects
+   * @returns {Object|null} Latest chat creation object or null
+   */
+  function findLatestCreateAction(activities) {
+    return activities.reduce((latest, obj) => {
+      if (!latest || latest.value.published < obj.value.published) {
+        return obj;
+      }
+      return latest;
+    }, null)?.value.action === 'Create' ? activities.reduce((latest, obj) => {
+      if (!latest || latest.value.published < obj.value.published) {
+        return obj;
+      }
+      return latest;
+    }, null) : null;
+  }
+
+  // ============================================================
   // ACTIONS - Join Existing Chat
   // ============================================================
   
@@ -266,77 +322,45 @@ export const useChatStore = defineStore("chat", () => {
         true
       );
 
-      /**
-       * Wait for activities to load (with timeout)
-       * Resolves with activities or empty array if timeout
-       */
-      function waitForActivities(timeout = 2000) {
-        return new Promise(resolve => {
-          const stop = watch(activities, (val) => {
-            if (val.length > 0) {
-              stop();
-              resolve(val);
-            }
-          }, { immediate: true });
-
-          setTimeout(() => {
-            stop();
-            resolve([]); // Treat timeout as no chat found
-          }, timeout);
-        });
-      }
-
-      /**
-       * Check if chat exists by finding a Create action
-       */
-      async function checkChatExists() {
-        const acts = await waitForActivities();
-
-        // Find the most recent activity
-        let latest = null;
-        for (const obj of acts) {
-          if (!latest || latest.value.published < obj.value.published) {
-            latest = obj;
-          }
-        }
-
-        // Return chat only if latest action is 'Create' (not deleted)
-        return latest?.value.action === 'Create' ? latest : null;
-      }
-
-      // Validate chat exists
-      const chat = await checkChatExists();
+      // Wait for activities to load, with fallback timeout
+      const acts = await waitForActivities(activities);
+      const chat = findLatestCreateAction(acts);
 
       if (chat != null) {
-        // 1. Post join membership to chat's membership channel
-        await graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Join',
-              user: session.value.actor,
-              published: Date.now(),
-            },
-            channels: [`chat:${joinChatId.value}:Membership`],
-          },
-          session.value
-        );
+        // Prepare timestamp for all operations
+        const now = Date.now();
 
-        // 2. Post join membership to user's membership channel
-        await graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Join',
-              chatId: joinChatId.value,
-              chatName: chat.value.chatName,
-              published: Date.now(),
+        // Post both membership updates in parallel for better performance
+        await Promise.all([
+          // Post join membership to chat's membership channel
+          graffiti.post(
+            {
+              value: {
+                action: 'Membership',
+                value: 'Join',
+                user: session.value.actor,
+                published: now,
+              },
+              channels: [`chat:${joinChatId.value}:Membership`],
             },
-            channels: [`user:${session.value.actor}:Membership`],
-            allowed: []
-          },
-          session.value
-        );
+            session.value
+          ),
+          // Post join membership to user's membership channel
+          graffiti.post(
+            {
+              value: {
+                action: 'Membership',
+                value: 'Join',
+                chatId: joinChatId.value,
+                chatName: chat.value.chatName,
+                published: now,
+              },
+              channels: [`user:${session.value.actor}:Membership`],
+              allowed: []
+            },
+            session.value
+          )
+        ]);
 
         // Show success and clear input
         joinSuccess.value = true;
@@ -369,43 +393,47 @@ export const useChatStore = defineStore("chat", () => {
    * @returns {boolean} Success status of leave operation
    */
   async function leaveChat(chatId = null) {
+    // Validate user is logged in and chat ID is provided
+    if (!session.value.actor || chatId === null) return false;
+
     // Reset status flags
     isLeaving.value = true;
     leaveError.value = false;
     leaveSuccess.value = false;
 
-    // Validate user is logged in and chat ID is provided
-    if (!session.value.actor || chatId === null) return false;
-
     try {
-      // 1. Post leave action to chat's membership channel
-      await graffiti.post(
-        {
-          value: {
-            action: 'Membership',
-            value: 'Leave',
-            user: session.value.actor,
-            published: Date.now(),
-          },
-          channels: [`chat:${chatId}:Membership`],
-        },
-        session.value
-      );
+      const now = Date.now();
 
-      // 2. Post leave action to user's membership channel
-      await graffiti.post(
-        {
-          value: {
-            action: 'Membership',
-            value: 'Leave',
-            chatId: chatId,
-            published: Date.now(),
+      // Post both leave actions in parallel
+      await Promise.all([
+        // 1. Post leave action to chat's membership channel
+        graffiti.post(
+          {
+            value: {
+              action: 'Membership',
+              value: 'Leave',
+              user: session.value.actor,
+              published: now,
+            },
+            channels: [`chat:${chatId}:Membership`],
           },
-          channels: [`user:${session.value.actor}:Membership`],
-          allowed: []
-        },
-        session.value
-      );
+          session.value
+        ),
+        // 2. Post leave action to user's membership channel
+        graffiti.post(
+          {
+            value: {
+              action: 'Membership',
+              value: 'Leave',
+              chatId: chatId,
+              published: now,
+            },
+            channels: [`user:${session.value.actor}:Membership`],
+            allowed: []
+          },
+          session.value
+        )
+      ]);
 
       // Clear active chat state if leaving the currently open chat
       if (activeChatId.value === chatId) {

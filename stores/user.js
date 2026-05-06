@@ -81,21 +81,37 @@ export const useUserStore = defineStore("user", () => {
   const profileImageUrl = ref();
   let currentObjectUrl = null;
 
+  // Cleanup function for memory management
+  const cleanupProfileImage = () => {
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = null;
+    }
+  };
+
   // Watch for profile image changes and create blob URL
   watch(
     () => profileImageRawUrl.value,
     async (url) => {
-      if (!url) return;
-
-      // Cleanup old object URL to prevent memory leaks
-      if (currentObjectUrl) {
-        URL.revokeObjectURL(currentObjectUrl);
+      if (!url) {
+        // Cleanup if URL was removed
+        cleanupProfileImage();
+        profileImageUrl.value = null;
+        return;
       }
 
-      // Fetch image blob from Graffiti and create local URL
-      const blob = await graffiti.getMedia(url, session.value);
-      currentObjectUrl = URL.createObjectURL(blob.data);
-      profileImageUrl.value = currentObjectUrl;
+      try {
+        // Cleanup old object URL to prevent memory leaks
+        cleanupProfileImage();
+
+        // Fetch image blob from Graffiti and create local URL
+        const blob = await graffiti.getMedia(url, session.value);
+        currentObjectUrl = URL.createObjectURL(blob.data);
+        profileImageUrl.value = currentObjectUrl;
+      } catch (err) {
+        console.error("Failed to load profile image:", err);
+        profileImageUrl.value = null;
+      }
     },
     { immediate: true }
   );

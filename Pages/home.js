@@ -36,62 +36,75 @@ function setup() {
   const userStore = useUserStore();
   const {profileName, profileImageUrl, hasProfileName} = storeToRefs(userStore);
 
-  function setActiveChat(chatId, chatName, rootId){
+  const firstName = ref("");
+
+  /**
+   * Set active chat and update route
+   */
+  function setActiveChat(chatId, chatName, rootId) {
     activeChatId.value = chatId;
     activeChatName.value = chatName;
     activeChatRootId.value = rootId ?? chatId;
-    router.push({ name: "chat", params: { chatId } })
-    // console.log(activeChatRootId.value)
-    
+    router.push({ name: "chat", params: { chatId } });
   }
 
-  const firstName = ref("");
+  /**
+   * Clear active chat selection
+   */
+  function clearActive() {
+    setActiveChat(null, null, null);
+  }
 
+  /**
+   * Complete user onboarding by setting profile name
+   */
   async function completeOnboarding() {
     if (!firstName.value.trim()) return;
     await userStore.updateProfileName(firstName.value);
   }
 
-  //handles page refresh, extracting id from url + name from id
-  watch(
-    () => route.params.chatId,
-    (chatId) => {
-      activeChatId.value = chatId || null;
-    },
-    { immediate: true }
-  );
-  watch(
-    chatList,
-    (chats) => {
-      const activeChat = chats.find(
-        chat => chat.value.chatId === activeChatId.value
-      );
-
-      activeChatName.value = activeChat?.value.chatName ?? null;
-      activeChatRootId.value = activeChat?.value.rootChatId ?? activeChatId.value;
-    },
-    { immediate: true }
-  );
-  
-
-  function clearActive(){
-    activeChat.setActiveChat(null, null);
-    console.log(activeChatId.value)
-  }
-
+  /**
+   * Leave active chat and navigate home
+   */
   async function leaveActiveChat(chatId) {
     await chatStore.leaveChat(chatId);
-    await delay()
+    await delay();
     router.push({ name: "home" });
   }
 
+  /**
+   * Combined watch: Handle route changes and update chat info from list
+   * - Update active chat ID when route changes (page refresh support)
+   * - Update active chat name and root ID from chat list data
+   */
+  watch(
+    () => [route.params.chatId, chatList.value],
+    ([chatId, chats]) => {
+      // Update active chat from route params
+      activeChatId.value = chatId || null;
+
+      // Find and extract info from chat list
+      if (chats && activeChatId.value) {
+        const activeChat = chats.find(
+          chat => chat.value.chatId === activeChatId.value
+        );
+
+        activeChatName.value = activeChat?.value.chatName ?? null;
+        activeChatRootId.value = activeChat?.value.rootChatId ?? activeChatId.value;
+      } else {
+        activeChatName.value = null;
+        activeChatRootId.value = null;
+      }
+    },
+    { immediate: true }
+  );
 
   return {
     setActiveChat,
+    clearActive,
     activeChatId,
     activeChatName,
     activeChatRootId,
-    clearActive,
     createNewChat: chatStore.createNewChat,
     newChatName,
     profileName, 

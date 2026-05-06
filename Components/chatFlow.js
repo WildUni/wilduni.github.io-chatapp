@@ -7,163 +7,175 @@ import {
 
 import loadMessage from "./message.js";
 import { storeToRefs } from "pinia"
-import {computed, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 function setup() {
-    const graffiti = useGraffiti();
-    const session = useGraffitiSession();
-    const chatStore = useChatStore();
-    const {activeChatId} = storeToRefs(chatStore);
+  const graffiti = useGraffiti();
+  const session = useGraffitiSession();
+  const chatStore = useChatStore();
+  const { activeChatId } = storeToRefs(chatStore);
 
-    function chatMessageChannels() {
-      return activeChatId.value == null ? [] : [`chat:${activeChatId.value}:Messages`];
-    }
-    
-    const { objects: chatMessages } = useGraffitiDiscover(
-      chatMessageChannels,
-      {
-        properties: {
-          value: {
-            required: ["action", "content", "published", 'user'],
-            properties: {
-              action: { const: "Message" },
-              content: { type: "string"},
-              published: { type: "number" },
-              user: { type: "string" }
-            },
+  /**
+   * Get message channel for current active chat
+   */
+  function chatMessageChannels() {
+    return activeChatId.value == null ? [] : [`chat:${activeChatId.value}:Messages`];
+  }
+
+  // Discover all messages in active chat
+  const { objects: chatMessages } = useGraffitiDiscover(
+    chatMessageChannels,
+    {
+      properties: {
+        value: {
+          required: ["action", "content", "published", 'user'],
+          properties: {
+            action: { const: "Message" },
+            content: { type: "string" },
+            published: { type: "number" },
+            user: { type: "string" }
           },
         },
       },
-      session
-    );
+    },
+    session
+  );
 
-    const usersInView = computed(() => {
-      return [...new Set(chatMessages.value.map(m => m.value.user))];
-    });
+  /**
+   * Extract unique user IDs from messages
+   * Using Set for automatic deduplication
+   */
+  const usersInView = computed(() => {
+    return [...new Set(chatMessages.value.map(m => m.value.user))];
+  });
 
-
-    const { objects: profileObjects } = useGraffitiDiscover(
-      () => usersInView.value.map(u => `user:${u}:Activities`),
-      {
-        properties: {
-          value: {
-            required: ["action", "published", 'user'],
-            properties: {
-              action: { type: "string" },
-              published: { type: "number" },
-
-              // optional fields depending on action
-              name: { type: "string" },
-              content: { type: "string" },
-              url: { type: "string" }
-            }
-          }
-        }
-      },
-      session
-    );
-    
-
-    //reduces user
-    const profileMap = computed(() => {
-      const acc = {};
-
-      for (const obj of profileObjects.value) {
-        const { user, action, name, url, published } = obj.value;
-        if (!user) continue;
-
-        // initialize per-user bucket
-        if (!acc[user]) {
-          acc[user] = {
-            name: null,
-            avatarUrl: null,
-            _ts: {}
-          };
-        }
-
-        // reduce WITHIN that user only
-        if (action === "ProfileName") {
-          if (!acc[user]._ts.name || acc[user]._ts.name < published) {
-            acc[user].name = name;
-            acc[user]._ts.name = published;
-          }
-        }
-
-        if (action === "ProfileImage") {
-          if (!acc[user]._ts.avatarUrl || acc[user]._ts.avatarUrl < published) {
-            acc[user].avatarUrl = url;
-            acc[user]._ts.avatarUrl = published;
+  // Discover all user profiles for users in view
+  const { objects: profileObjects } = useGraffitiDiscover(
+    () => usersInView.value.map(u => `user:${u}:Activities`),
+    {
+      properties: {
+        value: {
+          required: ["action", "published", 'user'],
+          properties: {
+            action: { type: "string" },
+            published: { type: "number" },
+            name: { type: "string" },
+            content: { type: "string" },
+            url: { type: "string" }
           }
         }
       }
-      
-      return acc;
-    });
-    const avatarCache = ref({}); // { [graffitiUrl]: objectURL }
+    },
+    session
+  );
 
-    async function resolveAvatar(url) {
-      if (!url) return null;
+  /**
+   * Build profile map from activities
+   * Keeps only the most recent ProfileName and ProfileImage for each user
+   */
+  const profileMap = computed(() => {
+    const profiles = {};
 
-      // already resolved
-      if (avatarCache.value[url]) return avatarCache.value[url];
+    // Iterate through all profile activities
+    for (const obj of profileObjects.value) {
+      const { user, action, name, url, published } = obj.value;
+      if (!user) continue;
 
-      try {
-        const blob = await graffiti.getMedia(url, session.value);
-        const objectUrl = URL.createObjectURL(blob.data);
+      // Initialize user profile if not exists
+      if (!profiles[user]) {
+        profiles[user] = { name: null, avatarUrl: null, _ts: {} };
+      }
 
-        avatarCache.value[url] = objectUrl;
-        return objectUrl;
-      } catch (e) {
-        console.error("Failed to load avatar:", url, e);
-        return null;
+      const userProfile = profiles[user];
+
+      // Update ProfileName if this is newer
+      if (action === "ProfileName" && (!userProfile._ts.name || userProfile._ts.name < published)) {
+        userProfile.name = name;
+        userProfile._ts.name = published;
+      }
+
+      // Update ProfileImage if this is newer
+      if (action === "ProfileImage" && (!userProfile._ts.avatarUrl || userProfile._ts.avatarUrl < published)) {
+        userProfile.avatarUrl = url;
+        userProfile._ts.avatarUrl = published;
       }
     }
 
-    const resolvedProfileMap = ref({});
+    return profiles;
+  });
 
-    watch(profileMap, async (map) => {
-      const newMap = {};
+  // Use Map for better performance with avatar caching
+  const avatarCache = ref(new Map());
 
-      for (const user in map) {
-        const profile = map[user];
+  /**
+   * Resolve Graffiti media URL to a browser-compatible object URL
+   * Results are cached to avoid redundant API calls
+   * @param {string} url - Graffiti media URL
+   * @returns {Promise<string|null>} Object URL or null on error
+   */
+  async function resolveAvatar(url) {
+    if (!url) return null;
 
-        let avatar = profile.avatarUrl;
+    // Return cached URL if already resolved
+    const cache = avatarCache.value;
+    if (cache.has(url)) return cache.get(url);
 
-        if (avatar?.startsWith("graffiti:")) {
-          avatar = await resolveAvatar(avatar);
-        }
+    try {
+      const blob = await graffiti.getMedia(url, session.value);
+      const objectUrl = URL.createObjectURL(blob.data);
+      cache.set(url, objectUrl);
+      return objectUrl;
+    } catch (err) {
+      console.error("Failed to load avatar:", err);
+      cache.set(url, null); // Cache the failure to avoid retry
+      return null;
+    }
+  }
 
-        newMap[user] = {
-          ...profile,
-          avatarUrl: avatar
-        };
+  /**
+   * Profile map with resolved avatar URLs (blob URLs)
+   */
+  const resolvedProfileMap = ref({});
+
+  // Watch profileMap and resolve avatars
+  watch(profileMap, async (profiles) => {
+    const resolved = {};
+
+    for (const [user, profile] of Object.entries(profiles)) {
+      let avatar = profile.avatarUrl;
+
+      // Resolve Graffiti URLs to object URLs
+      if (avatar?.startsWith("graffiti:")) {
+        avatar = await resolveAvatar(avatar);
       }
 
-      resolvedProfileMap.value = newMap;
-    }, { immediate: true });
+      resolved[user] = { ...profile, avatarUrl: avatar };
+    }
 
-  
-    const messagesWithProfiles = computed(() =>
-      chatMessages.value.map(msg => ({
-        ...msg,
-        profile: resolvedProfileMap.value[msg.value.user]
-      }))
-    );
+    resolvedProfileMap.value = resolved;
+  }, { immediate: true });
 
-    return {
-      chatMessages,
-      messagesWithProfiles,
-      activeChatId
-    };
+  /**
+   * Messages enriched with user profile information
+   */
+  const messagesWithProfiles = computed(() =>
+    chatMessages.value.map(msg => ({
+      ...msg,
+      profile: resolvedProfileMap.value[msg.value.user]
+    }))
+  );
 
-
+  return {
+    chatMessages,
+    messagesWithProfiles,
+    activeChatId
+  };
 }
-
 
 export default async () => ({
   props: ["chatId"],
   setup,
-  components:{
+  components: {
     Message: await loadMessage(),
   },
   template: await fetch(new URL("./chatFlow.html", import.meta.url)).then((r) =>
