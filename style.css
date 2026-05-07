@@ -223,9 +223,19 @@ ul {
   gap: 16px;
 }
 
+.message-wrapper.own-message {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
 wa-card {
   min-width: 300px;
   min-height: 60px;
+}
+
+.message-wrapper.own-message .card-header::part(base) {
+  background-color: #d9ecff;
+  border-color: #87bfff;
 }
 
 wa-card::part(body) {
@@ -242,6 +252,10 @@ wa-card::part(header) {
 .message-header {
   display: flex;
   gap: 16px;
+}
+
+.message-wrapper.own-message .message-header {
+  justify-content: flex-end;
 }
 
 .message-header-name {
@@ -379,6 +393,8 @@ wa-page::part(main-header) {
   position: sticky;
   top: 0;
   width: 100%;
+  z-index: 20;
+  background: #ffffff;
   border-bottom: 2px #efefef solid;
 }
 
@@ -386,6 +402,8 @@ wa-page::part(main-footer) {
   position: sticky;
   bottom: 0;
   width: 100%;
+  z-index: 20;
+  background: #ffffff;
   border-top: 2px #efefef solid;
 }
 

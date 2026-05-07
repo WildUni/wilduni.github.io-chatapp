@@ -7,7 +7,7 @@ import {
 
 import loadMessage from "./message.js";
 import { storeToRefs } from "pinia"
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 function setup() {
   const graffiti = useGraffiti();
@@ -211,10 +211,69 @@ function setup() {
     }))
   );
 
+  const messagesEnd = ref(null);
+
+  function getScrollParent(element) {
+    let parent = element?.parentElement;
+
+    while (parent) {
+      const style = window.getComputedStyle(parent);
+      if (/(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight) {
+        return parent;
+      }
+
+      parent = parent.parentElement;
+    }
+
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function scrollElementToBottom(element) {
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  }
+
+  function forceScrollToBottom() {
+    const scrollParent = getScrollParent(messagesEnd.value);
+    const main = messagesEnd.value?.closest("main") ?? document.querySelector("main");
+
+    messagesEnd.value?.scrollIntoView({ block: "end" });
+    scrollElementToBottom(main);
+    scrollElementToBottom(scrollParent);
+    scrollElementToBottom(document.scrollingElement || document.documentElement);
+  }
+
+  async function scrollToLatestMessage() {
+    await nextTick();
+
+    requestAnimationFrame(() => {
+      forceScrollToBottom();
+      requestAnimationFrame(forceScrollToBottom);
+    });
+
+    setTimeout(forceScrollToBottom, 100);
+  }
+
+  watch(
+    () => messagesWithProfiles.value.length,
+    () => scrollToLatestMessage(),
+    { flush: "post", immediate: true }
+  );
+
+  watch(
+    activeChatId,
+    () => scrollToLatestMessage(),
+    { flush: "post", immediate: true }
+  );
+
+  onMounted(scrollToLatestMessage);
+
   return {
     chatMessages,
     messagesWithProfiles,
-    activeChatId
+    activeChatId,
+    session,
+    messagesEnd
   };
 }
 

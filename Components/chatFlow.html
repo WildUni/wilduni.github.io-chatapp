@@ -7,8 +7,10 @@
             <Message :username="msg.profile?.name" 
             :message-content="msg.value.content" 
             :avatarUrl="msg.profile?.avatarUrl" 
-            :published="msg.value.published"/>
+            :published="msg.value.published"
+            :is-own-message="msg.value.user === session?.actor"/>
         </li>
+        <li ref="messagesEnd" class="messages-end"></li>
     </ul>
 </div>
 <div v-else class="empty-chatflow-wrapper">
