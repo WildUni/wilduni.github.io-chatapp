@@ -1,6 +1,10 @@
 
 <wa-page>
-    <wa-tab-group slot="navigation" withoutScrollControls>
+    <wa-tab-group
+        slot="navigation"
+        withoutScrollControls
+        :active="activeNavigationTab"
+        @wa-tab-show="activeNavigationTab = $event.detail.name">
         <wa-tab panel="chats">
             Chats
         </wa-tab>
@@ -16,11 +20,55 @@
         </wa-tab-panel>
 
         <wa-tab-panel name="branches">
-            <ChatTree @update-active-chat="setActiveChat"></ChatTree>
+            <ChatTree
+                @update-active-chat="setActiveChat"
+                @create-branch="openBranchDrawer"
+                @delete-branch="deleteBranch">
+            </ChatTree>
         </wa-tab-panel>
 
         <div slot="nav" style="margin-left: auto;" class="chat-list-actions">
-            <CreateChatButton></CreateChatButton>
+            <CreateChatButton v-if="activeNavigationTab !== 'branches'"></CreateChatButton>
+
+            <template v-else>
+                <wa-button
+                    class="create-chat-button"
+                    title="Create branch"
+                    aria-label="Create branch"
+                    @click="openBranchDrawer()"
+                    :disabled.prop="!activeChatId">
+                    <wa-icon name="code-branch"></wa-icon>
+                </wa-button>
+
+                <wa-drawer label="Create Branch" id="create-branch-drawer" placement="top">
+                    <div class="panel-wrapper">
+                        <h4>New branch</h4>
+                        <p>
+                            Parent: <strong>{{ branchParentName }}</strong>
+                        </p>
+                        <input
+                            v-model="branchName"
+                            placeholder="New branch name"
+                            maxlength="30"
+                            type="text"
+                            @keydown.enter="createBranchUnderActiveChat"
+                        />
+                        <p v-if="createError" class="form-error">Branch creation failed. Please try again.</p>
+                    </div>
+
+                    <wa-button
+                        slot="footer"
+                        variant="brand"
+                        @click="createBranchUnderActiveChat"
+                        :disabled.prop="isCreating || !branchName.trim() || !activeChatId"
+                    >
+                        <wa-spinner v-if="isCreating"></wa-spinner>
+                        <wa-icon name="check" v-else-if="createSuccess"></wa-icon>
+                        <wa-icon name="code-branch" v-else></wa-icon>
+                        {{ isCreating ? "Creating..." : createSuccess ? "Branch Created" : "Create Branch" }}
+                    </wa-button>
+                </wa-drawer>
+            </template>
         </div>
     </wa-tab-group>
 
@@ -30,6 +78,11 @@
 
     <div slot="main-header">
         <div v-if="activeChatId" class="chat-name-wrapper">
+            <wa-avatar
+                label="Chat image"
+                :image.prop="activeChatImageUrl || ''"
+                class="chat-header-avatar"
+            ></wa-avatar>
             <h1>{{activeChatName}}</h1>
             <wa-copy-button 
                 :value="activeChatId"
@@ -43,13 +96,62 @@
         <div v-if="activeChatId" slot="main-header-actions" class="main-header-actions">
             <ChatMembers>hello</ChatMembers>
             <wa-button
-                @click="leaveActiveChat(activeChatId)" 
-                :variant="leaveSuccess ? 'brand' : 'danger'"
-                :disabled.prop="isLeaving">
-                <wa-spinner v-if="isLeaving"></wa-spinner>
-                <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
-                {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+                appearance="outlined"
+                data-drawer="open chat-settings-drawer"
+                class="chat-settings-button"
+            >
+                <wa-icon name="gear" slot="start"></wa-icon>
+                Settings
             </wa-button>
+
+            <wa-drawer label="Chat Settings" id="chat-settings-drawer" placement="end" class="chat-side-panel">
+                <div class="chat-settings-wrapper">
+                    <label class="chat-image-upload" title="Upload a chat image">
+                        <wa-avatar
+                            label="Chat image"
+                            :image.prop="activeChatImageUrl || ''"
+                            class="chat-settings-avatar"
+                        ></wa-avatar>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            @change="uploadActiveChatImage"
+                            class="profile-image-input"
+                        />
+                    </label>
+
+                    <label class="settings-field">
+                        Name
+                        <input
+                            v-model="editedActiveChatName"
+                            maxlength="30"
+                            type="text"
+                        />
+                    </label>
+
+                    <wa-button
+                        variant="brand"
+                        type="button"
+                        @click="renameActiveChat"
+                        :disabled.prop="isRenaming || !editedActiveChatName.trim()"
+                    >
+                        <wa-spinner v-if="isRenaming"></wa-spinner>
+                        Rename
+                    </wa-button>
+
+                    <p v-if="renameError" class="settings-error">Update failed.</p>
+                </div>
+
+                <wa-button
+                    slot="footer"
+                    @click="leaveActiveChat(activeChatRootId)" 
+                    :variant="leaveSuccess ? 'brand' : 'danger'"
+                    :disabled.prop="isLeaving">
+                    <wa-spinner v-if="isLeaving"></wa-spinner>
+                    <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
+                    {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+                </wa-button>
+            </wa-drawer>
         </div>
     </div>
 

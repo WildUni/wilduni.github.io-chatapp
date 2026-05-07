@@ -1,4 +1,4 @@
-import { watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import loadChatList from "../Components/chatList.js";
 import loadChatTree from "../Components/chatTree.js";
@@ -23,18 +23,51 @@ function setup() {
     newChatName, 
     chatList, 
     activeChatRootId,
+    activeChatParentId,
+    activeChatImageUrl,
+    isCreating,
+    createError,
+    createSuccess,
+    isRenaming,
+    renameError,
     isLeaving,
     leaveSuccess} = storeToRefs(chatStore)
+  const editedActiveChatName = ref("");
+  const activeNavigationTab = ref("chats");
+  const branchName = ref("");
+  const branchParent = ref(null);
+
+  const branchParentName = computed(() => {
+    return branchParent.value?.name || activeChatName.value || "No chat selected";
+  });
+
+  watch(
+    activeChatName,
+    (name) => {
+      editedActiveChatName.value = name ?? "";
+    },
+    { immediate: true }
+  );
+
+  watch(
+    activeChatId,
+    (chatId) => {
+      if (!chatId && activeNavigationTab.value === "branches") {
+        activeNavigationTab.value = "chats";
+      }
+    }
+  );
 
   /**
    * Set active chat and update route
    * Chat-list selections pass their own chat ID as rootId.
    * Branch-tree selections pass the branch ID as chatId and keep the original rootId.
    */
-  function setActiveChat(chatId, chatName, rootId) {
+  function setActiveChat(chatId, chatName, rootId, parentId) {
     activeChatId.value = chatId;
     activeChatName.value = chatName;
     activeChatRootId.value = rootId ?? chatId;
+    activeChatParentId.value = parentId ?? chatId;
     router.push({ name: "chat", params: { chatId } });
   }
 
@@ -54,6 +87,86 @@ function setup() {
     router.push({ name: "home" });
   }
 
+  async function renameActiveChat() {
+    if (!activeChatId.value || !editedActiveChatName.value) return;
+
+    const success = await chatStore.renameChat(
+      activeChatId.value,
+      editedActiveChatName.value,
+      activeChatRootId.value,
+      activeChatParentId.value
+    );
+
+    if (success) {
+      const drawer = document.querySelector("#chat-settings-drawer");
+      if (drawer) drawer.open = false;
+    }
+  }
+
+  async function uploadActiveChatImage(event) {
+    await chatStore.handleChatImageUpload(event, activeChatRootId.value);
+  }
+
+  async function openBranchDrawer(parent = null) {
+    branchParent.value = parent;
+    await nextTick();
+
+    const drawer = document.querySelector("#create-branch-drawer");
+    if (drawer) drawer.open = true;
+  }
+
+  async function createBranchUnderActiveChat() {
+    const name = branchName.value.trim();
+
+    if (!name || !activeChatId.value || !activeChatRootId.value) return;
+
+    const parentId = branchParent.value?.id || activeChatId.value;
+    const rootId = branchParent.value?.rootChatId || activeChatRootId.value;
+    const previousChatName = newChatName.value;
+    newChatName.value = name;
+
+    try {
+      const success = await chatStore.createNewChat(
+        parentId,
+        rootId,
+      );
+
+      if (success) {
+        branchName.value = "";
+        branchParent.value = null;
+        await delay();
+        const drawer = document.querySelector("#create-branch-drawer");
+        if (drawer) drawer.open = false;
+      }
+    } finally {
+      newChatName.value = previousChatName;
+    }
+  }
+
+  async function deleteBranch(branch) {
+    if (!branch?.id || branch.id === branch.rootChatId) return;
+
+    const success = await chatStore.deleteBranch(
+      branch.id,
+      branch.rootChatId,
+      branch.parentChatId,
+      branch.name
+    );
+
+    if (success && activeChatId.value === branch.id) {
+      const rootChat = chatList.value.find(
+        chat => chat.value.chatId === branch.rootChatId
+      );
+
+      setActiveChat(
+        branch.rootChatId,
+        rootChat?.value.chatName ?? "Untitled chat",
+        branch.rootChatId,
+        branch.rootChatId
+      );
+    }
+  }
+
   /**
    * Combined watch: Handle route changes and update chat info from list
    * - Update active chat ID when route changes (page refresh support)
@@ -66,6 +179,7 @@ function setup() {
       const routeChatId = chatId || null;
       const knownActiveName = activeChatName.value;
       const knownRootId = activeChatRootId.value;
+      const knownParentId = activeChatParentId.value;
 
       // Update active chat from route params
       activeChatId.value = routeChatId;
@@ -73,6 +187,7 @@ function setup() {
       if (!routeChatId) {
         activeChatName.value = null;
         activeChatRootId.value = null;
+        activeChatParentId.value = null;
         return;
       }
 
@@ -85,12 +200,14 @@ function setup() {
         if (activeChat) {
           activeChatName.value = activeChat.value.chatName;
           activeChatRootId.value = activeChat.value.rootChatId ?? activeChat.value.chatId;
+          activeChatParentId.value = activeChat.value.parentChatId ?? activeChat.value.chatId;
           return;
         }
       }
 
       activeChatName.value = knownActiveName;
       activeChatRootId.value = knownRootId ?? routeChatId;
+      activeChatParentId.value = knownParentId ?? routeChatId;
     },
     { immediate: true }
   );
@@ -101,6 +218,22 @@ function setup() {
     activeChatId,
     activeChatName,
     activeChatRootId,
+    activeChatParentId,
+    activeChatImageUrl,
+    activeNavigationTab,
+    branchName,
+    branchParentName,
+    isCreating,
+    createError,
+    createSuccess,
+    openBranchDrawer,
+    createBranchUnderActiveChat,
+    deleteBranch,
+    editedActiveChatName,
+    isRenaming,
+    renameError,
+    renameActiveChat,
+    uploadActiveChatImage,
     createNewChat: chatStore.createNewChat,
     newChatName,
     leaveActiveChat,

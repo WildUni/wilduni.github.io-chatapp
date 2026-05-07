@@ -7,12 +7,12 @@ function setup(props) {
   const { activeChatId } = storeToRefs(chatStore);
   
   return {
-    activeChatId
+    activeChatId,
   };
 }
 
 export default async () => ({
-  props: ["chatId", 'chatName'],
+  props: ["chatId", 'chatName', 'chatImageUrl'],
   setup,
   template: await fetch(new URL("./chatListItem.html", import.meta.url)).then((r) =>
     r.text(),

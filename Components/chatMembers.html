@@ -7,7 +7,7 @@
     {{ members.length }}
 </wa-button>
 
-<wa-drawer label="Chat Members" id="chat-members-drawer" placement="end">
+<wa-drawer label="Chat Members" id="chat-members-drawer" placement="end" class="chat-side-panel">
     <div class="chat-members-wrapper">
         <div class="chat-members-summary">
             {{ members.length }} {{ members.length === 1 ? "member" : "members" }}
@@ -15,13 +15,11 @@
 
         <ul v-if="members.length" class="chat-members-list">
             <li v-for="member in members" :key="member.user" class="chat-member-item">
-                <img
-                    v-if="member.profile.avatarUrl"
-                    :src="member.profile.avatarUrl"
-                    alt="Member avatar"
+                <wa-avatar
+                    label="Member avatar"
+                    :image.prop="member.profile.avatarUrl || ''"
                     class="chat-member-avatar"
-                />
-                <wa-avatar v-else label="Member avatar"></wa-avatar>
+                ></wa-avatar>
 
                 <div class="chat-member-text">
                     <div class="chat-member-name">

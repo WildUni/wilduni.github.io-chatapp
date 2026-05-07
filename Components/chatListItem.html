@@ -1,6 +1,6 @@
 <div class="chat-list-item"  
   :class="{ selected: chatId === activeChatId }">
-  <wa-avatar label="User avatar"></wa-avatar>
+  <wa-avatar label="Chat image" :image.prop="chatImageUrl || ''"></wa-avatar>
   <div class="chatListItem-wrapper">
     <div class="chatListItem-name fade-text">{{chatName}}</div>
     <div class="chatListItem-id-wrapper fade-text">

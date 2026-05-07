@@ -13,16 +13,17 @@ function setup(props, { emit }) {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
     const chatStore = useChatStore()
-    const {chatList} = storeToRefs(chatStore)
+    const {chatList, chatImageUrls} = storeToRefs(chatStore)
 
     
-    function emitUpdateChat(chatId, chatName, rootId) {
-      emit("update-active-chat", chatId, chatName, rootId);
+    function emitUpdateChat(chatId, chatName, rootId, parentId) {
+      emit("update-active-chat", chatId, chatName, rootId, parentId);
     }
 
     return {
       emitUpdateChat, 
       chatList,
+      chatImageUrls,
     };
 }
 

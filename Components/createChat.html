@@ -1,57 +1,62 @@
 
-<wa-button data-drawer="open newChatMenu" class="create-chat-button">
-    <wa-icon name="pen-to-square" variant="regular" @click='console.log("hey")'></wa-icon>
+<wa-button
+    data-drawer="open createChatMenu"
+    class="create-chat-button"
+    title="Create chat"
+    aria-label="Create chat">
+    <wa-icon name="plus"></wa-icon>
 </wa-button>
 
-<wa-drawer label="New Message Chanel" id="newChatMenu" placement="top">
-    <wa-tab-group
-        :active="activeTab"
-        @wa-tab-show="activeTab = $event.detail.name">
+<wa-button
+    data-drawer="open joinChatMenu"
+    class="create-chat-button"
+    title="Join chat"
+    aria-label="Join chat">
+    <wa-icon name="right-to-bracket"></wa-icon>
+</wa-button>
 
-        <wa-tab panel="newchat">Create New Chat</wa-tab>
-        <wa-tab panel="joinchat">Join Existing Chat </wa-tab>
+<wa-drawer label="Create New Chat" id="createChatMenu" placement="top">
+    <div class="panel-wrapper">
+        <h4>Create your own chat!</h4>
+        <p>Please provide a name for your new chat. You will be able to change this later.</p>
+        <input
+            v-model="newChatName"
+            placeholder="Name of new chat! (30 characters max.)"
+            maxlength="30"
+            type="text"
+            @keydown.enter="handleCreateChat"/>
+        <p v-if="createError" class="form-error">Chat creation failed. Please try again.</p>
+    </div>
 
-        <wa-tab-panel name="newchat">
-            <div class="panel-wrapper">
-                <h4>Create you own chat!</h4>
-                <p>Please provide a name for your new chat! You will be able to change this later!
-                </p>
-                <input v-model="newChatName" 
-                placeholder="Name of new chat! (30 characters max.)"
-                maxlength="30"
-                type="text"/>
-            </div>
-        </wa-tab-panel>
-        <wa-tab-panel name="joinchat">
-            <div class="panel-wrapper">
-                <h4>Join an existing chat!</h4>
-                <p>Please enter the id of the chat you want to join below! The id can be found at the top of each chat, as well as at the end 
-                    of the chat's url!
-                </p>
-                <input v-model="joinChatId" placeholder="Enter the target chat's id here!"/>
-            </div>
-        </wa-tab-panel>
-    </wa-tab-group>
-    
-    <div v-if="activeTab === 'newchat'" slot="footer">
-        <wa-button :variant="createSuccess ? 'success' : 'brand'"
+    <wa-button
+        slot="footer"
+        :variant="createSuccess ? 'success' : 'brand'"
         @click="handleCreateChat"
         :disabled.prop="isCreating||!newChatName.length">
         <wa-icon name="check" v-if="createSuccess"></wa-icon>
         <wa-spinner v-if="isCreating"></wa-spinner>
         {{ isCreating ? "Creating..." : createSuccess ? "Chat Created" : "Create" }}
     </wa-button>
+</wa-drawer>
+
+<wa-drawer label="Join Existing Chat" id="joinChatMenu" placement="top">
+    <div class="panel-wrapper">
+        <h4>Join an existing chat!</h4>
+        <p>Please enter the id of the chat you want to join. The id can be found at the top of each chat, as well as at the end of the chat's url.</p>
+        <input
+            v-model="joinChatId"
+            placeholder="Enter the target chat's id here!"
+            @keydown.enter="handleJoinChat"/>
+        <p v-if="joinError" class="form-error">Chat join failed. Please check the id and try again.</p>
     </div>
-    <div v-else slot="footer">
-        <wa-button :variant="joinSuccess ? 'success' : 'brand'"
+
+    <wa-button
+        slot="footer"
+        :variant="joinSuccess ? 'success' : 'brand'"
         @click="handleJoinChat"
         :disabled.prop="isJoining||!joinChatId">
         <wa-icon name="check" v-if="joinSuccess"></wa-icon>
         <wa-spinner v-if="isJoining"></wa-spinner>
         {{ isJoining ? "Joining..." : joinSuccess ? "Chat Joined" : "Join" }}
     </wa-button>
-    </div>
-    
 </wa-drawer>
-
-

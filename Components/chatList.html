@@ -3,7 +3,8 @@
         <ChatListItem
             :chatId="chat.value.chatId"
             :chatName="chat.value.chatName"
-            @click="emitUpdateChat(chat.value.chatId, chat.value.chatName, chat.value.chatId)"
+            :chatImageUrl="chatImageUrls[chat.value.chatId] || ''"
+            @click="emitUpdateChat(chat.value.chatId, chat.value.chatName, chat.value.chatId, chat.value.chatId)"
         ></ChatListItem>
     </li>
 </ul>

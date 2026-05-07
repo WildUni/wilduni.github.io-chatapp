@@ -1,7 +1,10 @@
 <div class="message-wrapper">
     <div class="avatar">
-        <img v-if='avatarUrl' :src="avatarUrl" alt="User avatar" />
-        <wa-avatar v-else label="User avatar" :src="avatarUrl"></wa-avatar>
+        <wa-avatar
+            label="User avatar"
+            :image.prop="avatarUrl || ''"
+            class="message-avatar"
+        ></wa-avatar>
     </div>
 
     <wa-card class="card-header">

@@ -25,6 +25,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeChatId = ref(null);
   const activeChatName = ref(null);
   const activeChatRootId = ref(null);
+  const activeChatParentId = ref(null);
 
   // ============================================================
   // STATE - Chat Creation & Joining
@@ -53,6 +54,15 @@ export const useChatStore = defineStore("chat", () => {
   const isLeaving = ref(false);
   const leaveError = ref(false);
   const leaveSuccess = ref(false);
+
+  // Chat rename operation status
+  const isRenaming = ref(false);
+  const renameError = ref(false);
+  const renameSuccess = ref(false);
+
+  // Active chat image display URL
+  const activeChatImageUrl = ref(null);
+  let currentChatImageObjectUrl = null;
 
   // ============================================================
   // ACTIONS - Create New Chat
@@ -173,6 +183,182 @@ export const useChatStore = defineStore("chat", () => {
     return !createError.value;
   }
 
+  // ============================================================
+  // ACTIONS - Rename Chat or Branch
+  // ============================================================
+
+  /**
+   * Rename a root chat or branch by posting the newest display-name activity.
+   * @param {string} chatId - Chat/branch ID to rename
+   * @param {string} name - New display name
+   * @param {string|null} rootChatId - Root chat ID for branch tree updates
+   * @param {string|null} parentChatId - Parent chat ID for branch tree structure
+   * @returns {boolean} Success status of rename operation
+   */
+  async function renameChat(chatId, name, rootChatId = null, parentChatId = null) {
+    const trimmedName = name.trim();
+
+    if (!session.value?.actor || !chatId || !trimmedName) return false;
+
+    isRenaming.value = true;
+    renameError.value = false;
+    renameSuccess.value = false;
+
+    try {
+      const now = Date.now();
+      const rootId = rootChatId ?? chatId;
+      const parentId = parentChatId ?? chatId;
+      const postOperations = [
+        graffiti.post(
+          {
+            value: {
+              action: 'Rename',
+              chatId,
+              name: trimmedName,
+              published: now,
+              parentChatId: parentId,
+              rootChatId: rootId,
+            },
+            channels: [`chat:${rootId}:Descendants`],
+          },
+          session.value
+        )
+      ];
+
+      if (chatId === rootId) {
+        postOperations.push(
+          graffiti.post(
+            {
+              value: {
+                action: 'Rename',
+                chatId,
+                chatName: trimmedName,
+                published: now,
+                parentChatId: parentId,
+                rootChatId: rootId,
+              },
+              channels: [`chat:${chatId}:Activities`],
+            },
+            session.value
+          ),
+          graffiti.post(
+            {
+              value: {
+                action: 'Membership',
+                value: 'Join',
+                chatId,
+                chatName: trimmedName,
+                published: now,
+              },
+              channels: [`user:${session.value.actor}:Membership`],
+              allowed: []
+            },
+            session.value
+          )
+        );
+      }
+
+      await Promise.all(postOperations);
+
+      if (activeChatId.value === chatId) {
+        activeChatName.value = trimmedName;
+      }
+
+      renameSuccess.value = true;
+      setTimeout(() => {
+        renameSuccess.value = false;
+      }, 1500);
+    } catch (err) {
+      renameError.value = true;
+    } finally {
+      isRenaming.value = false;
+    }
+
+    return !renameError.value;
+  }
+
+  async function deleteBranch(chatId, rootChatId = null, parentChatId = null, name = "") {
+    if (!session.value?.actor || !chatId || !rootChatId) return false;
+
+    try {
+      await graffiti.post(
+        {
+          value: {
+            action: 'Delete',
+            chatId,
+            name,
+            published: Date.now(),
+            parentChatId: parentChatId ?? chatId,
+            rootChatId,
+          },
+          channels: [`chat:${rootChatId}:Descendants`],
+        },
+        session.value
+      );
+    } catch (err) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Upload and set an image for a root chat.
+   * @param {string} chatId - Root chat ID
+   * @param {File} file - Image file to upload
+   * @returns {boolean} Success status of image update
+   */
+  async function updateChatImage(chatId, file) {
+    if (!session.value?.actor || !chatId || !file) return false;
+
+    renameError.value = false;
+
+    try {
+      const mediaUrl = await graffiti.postMedia(
+        {
+          data: file
+        },
+        session.value
+      );
+
+      const oldUrl = activeChatImageRawUrl.value;
+
+      await graffiti.post(
+        {
+          value: {
+            action: 'ChatImage',
+            chatId,
+            url: mediaUrl,
+            published: Date.now(),
+          },
+          channels: [`chat:${chatId}:Activities`],
+        },
+        session.value
+      );
+
+      if (oldUrl) {
+        try {
+          await graffiti.deleteMedia(oldUrl, session.value);
+        } catch (err) {
+          console.log("Failed to delete old chat image:", err);
+        }
+      }
+    } catch (err) {
+      renameError.value = true;
+    }
+
+    return !renameError.value;
+  }
+
+  async function handleChatImageUpload(event, chatId = activeChatRootId.value) {
+    const file = event.target.files[0];
+    if (!file) return false;
+
+    const success = await updateChatImage(chatId, file);
+    event.target.value = "";
+    return success;
+  }
+
 
   // ============================================================
   // COMPUTED - Chat List (User's Active Chats)
@@ -204,6 +390,78 @@ export const useChatStore = defineStore("chat", () => {
     true
   );
 
+  const activeChatActivityChannels = computed(() => {
+    return session.value && activeChatRootId.value
+      ? [`chat:${activeChatRootId.value}:Activities`]
+      : [];
+  });
+
+  const { objects: activeChatActivities } = useGraffitiDiscover(
+    activeChatActivityChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'published'],
+          properties: {
+            action: { type: 'string' },
+            chatId: { type: 'string' },
+            url: { type: 'string' },
+            published: { type: 'number' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  const activeChatImageRawUrl = computed(() => {
+    return activeChatActivities.value.reduce((latest, obj) => {
+      if (
+        obj.value.action !== 'ChatImage' ||
+        obj.value.chatId !== activeChatRootId.value ||
+        !obj.value.url
+      ) {
+        return latest;
+      }
+
+      if (!latest || latest.value.published < obj.value.published) {
+        return obj;
+      }
+
+      return latest;
+    }, null)?.value.url ?? null;
+  });
+
+  function cleanupActiveChatImage() {
+    if (currentChatImageObjectUrl) {
+      URL.revokeObjectURL(currentChatImageObjectUrl);
+      currentChatImageObjectUrl = null;
+    }
+  }
+
+  watch(
+    () => activeChatImageRawUrl.value,
+    async (url) => {
+      if (!url) {
+        cleanupActiveChatImage();
+        activeChatImageUrl.value = null;
+        return;
+      }
+
+      try {
+        cleanupActiveChatImage();
+        const blob = await graffiti.getMedia(url, session.value);
+        currentChatImageObjectUrl = URL.createObjectURL(blob.data);
+        activeChatImageUrl.value = currentChatImageObjectUrl;
+      } catch (err) {
+        console.error("Failed to load chat image:", err);
+        activeChatImageUrl.value = null;
+      }
+    },
+    { immediate: true }
+  );
+
   /**
    * Compute list of active chats for the current user
    * Filters to only show chats where the latest action is 'Join'
@@ -233,6 +491,82 @@ export const useChatStore = defineStore("chat", () => {
 
     return ret;
   });
+
+  const chatActivityChannels = computed(() => {
+    return session.value
+      ? chatList.value.map(chat => `chat:${chat.value.chatId}:Activities`)
+      : [];
+  });
+
+  const { objects: chatImageActivities } = useGraffitiDiscover(
+    chatActivityChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'chatId', 'published'],
+          properties: {
+            action: { type: 'string' },
+            chatId: { type: 'string' },
+            url: { type: 'string' },
+            published: { type: 'number' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  const chatImageRawByChat = computed(() => {
+    return chatImageActivities.value.reduce((acc, obj) => {
+      const { action, chatId, url, published } = obj.value;
+
+      if (action !== 'ChatImage' || !chatId || !url || !published) return acc;
+
+      if (!acc[chatId] || acc[chatId].published < published) {
+        acc[chatId] = { url, published };
+      }
+
+      return acc;
+    }, {});
+  });
+
+  const chatImageUrls = ref({});
+  const chatImageObjectUrls = new Map();
+
+  watch(
+    chatImageRawByChat,
+    async (imagesByChat) => {
+      const nextUrls = {};
+      const activeUrls = new Set();
+
+      for (const [chatId, image] of Object.entries(imagesByChat)) {
+        activeUrls.add(image.url);
+
+        if (!chatImageObjectUrls.has(image.url)) {
+          try {
+            const blob = await graffiti.getMedia(image.url, session.value);
+            chatImageObjectUrls.set(image.url, URL.createObjectURL(blob.data));
+          } catch (err) {
+            console.error("Failed to load chat list image:", err);
+            chatImageObjectUrls.set(image.url, null);
+          }
+        }
+
+        nextUrls[chatId] = chatImageObjectUrls.get(image.url);
+      }
+
+      for (const [url, objectUrl] of chatImageObjectUrls.entries()) {
+        if (!activeUrls.has(url)) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          chatImageObjectUrls.delete(url);
+        }
+      }
+
+      chatImageUrls.value = nextUrls;
+    },
+    { immediate: true }
+  );
 
 
   // ============================================================
@@ -274,7 +608,7 @@ export const useChatStore = defineStore("chat", () => {
         return obj;
       }
       return latest;
-    }, null)?.value.action === 'Create' ? activities.reduce((latest, obj) => {
+    }, null)?.value.action !== 'Delete' ? activities.reduce((latest, obj) => {
       if (!latest || latest.value.published < obj.value.published) {
         return obj;
       }
@@ -309,7 +643,7 @@ export const useChatStore = defineStore("chat", () => {
             value: {
               required: ['action', 'chatId', 'chatName', 'published', 'parentChatId', 'rootChatId'],
               properties: {
-                action: { type: 'string', enum: ['Create', 'Delete'] },
+                action: { type: 'string', enum: ['Create', 'Delete', 'Rename'] },
                 parentChatId: { type: 'string' },
                 chatId: { type: 'string' },
                 chatName: { type: 'string' },
@@ -441,6 +775,7 @@ export const useChatStore = defineStore("chat", () => {
         activeChatId.value = null;
         activeChatName.value = null;
         activeChatRootId.value = null;
+        activeChatParentId.value = null;
       }
 
       // Show success message
@@ -467,6 +802,9 @@ export const useChatStore = defineStore("chat", () => {
     activeChatId,
     activeChatName,
     activeChatRootId,
+    activeChatParentId,
+    activeChatImageUrl,
+    chatImageUrls,
 
     // Chat list
     chatList,
@@ -489,7 +827,16 @@ export const useChatStore = defineStore("chat", () => {
     leaveChat,
     isLeaving,
     leaveError,
-    leaveSuccess
+    leaveSuccess,
+
+    // Rename chat
+    renameChat,
+    deleteBranch,
+    updateChatImage,
+    handleChatImageUpload,
+    isRenaming,
+    renameError,
+    renameSuccess
   };
 });
 

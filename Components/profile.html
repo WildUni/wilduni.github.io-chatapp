@@ -1,11 +1,12 @@
 
 <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
 
-    <div v-if="profileImageUrl" slot="start">
-        <img :src="profileImageUrl" class="profile-pill-avatar"/>
-    </div>
-    <div v-else slot="start">
-        <wa-avatar label="User avatar"></wa-avatar>
+    <div slot="start">
+        <wa-avatar
+            label="User avatar"
+            :image.prop="profileImageUrl || ''"
+            class="profile-pill-avatar"
+        ></wa-avatar>
     </div>
     
     <div class="profile-pill-text-wrapper">
@@ -21,14 +22,11 @@
 <wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
     <div class="profile-wrapper" >
         <label class="profile-image-upload" title="Upload a Profile Picture">
-            <img
-                v-if="profileImageUrl"
-                :src="profileImageUrl"
+            <wa-avatar
+                label="User avatar"
+                :image.prop="profileImageUrl || ''"
                 class="profile-image"
-            />
-            <div v-else class="profile-image">
-                <wa-avatar label="User avatar" class="profile-image"></wa-avatar>
-            </div>
+            ></wa-avatar>
 
             <input
                 type="file"
