@@ -1,23 +1,27 @@
 <div class="message-wrapper" :class="{ 'own-message': isOwnMessage }">
-    <div class="avatar">
+    <div class="avatar" :class="{ 'avatar-placeholder': !showAvatar }">
         <wa-avatar
+            v-if="showAvatar"
             label="User avatar"
             :image.prop="avatarUrl || ''"
             class="message-avatar"
         ></wa-avatar>
     </div>
 
-    <wa-card class="card-header">
-        <div slot="header" class="message-header">
-            <div class="message-header-name">
-                {{username}}
-            </div>
-            <div appearance="plain" class='message-header-date'>
-                {{ new Date(published).toLocaleString('en-US') }}
-            </div>
+    <div class="message-stack">
+        <div v-if="showName" class="message-chunk-name">
+            {{username}}
         </div>
-        <div class="message-body-content">
-            {{messageContent}}
-        </div>
-    </wa-card>
+
+        <wa-card class="card-header">
+            <div slot="header" class="message-header">
+                <div appearance="plain" class='message-header-date'>
+                    {{ formatMessageTimestamp(published) }}
+                </div>
+            </div>
+            <div class="message-body-content">
+                {{messageContent}}
+            </div>
+        </wa-card>
+    </div>
 </div>

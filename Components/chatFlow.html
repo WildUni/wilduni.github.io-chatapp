@@ -3,12 +3,14 @@
 
 <div v-if="messagesWithProfiles.length">
     <ul class='chatflow-wrapper'>
-        <li v-for="msg in messagesWithProfiles"> 
+        <li v-for="msg in messagesWithProfiles" :key="msg.url || `${msg.value.user}-${msg.value.published}`"> 
             <Message :username="msg.profile?.name" 
             :message-content="msg.value.content" 
             :avatarUrl="msg.profile?.avatarUrl" 
             :published="msg.value.published"
-            :is-own-message="msg.value.user === session?.actor"/>
+            :is-own-message="msg.value.user === session?.actor"
+            :show-name="msg.isFirstInChunk"
+            :show-avatar="msg.isLastInChunk"/>
         </li>
         <li ref="messagesEnd" class="messages-end"></li>
     </ul>

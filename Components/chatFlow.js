@@ -9,6 +9,8 @@ import loadMessage from "./message.js";
 import { storeToRefs } from "pinia"
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
+const MESSAGE_CHUNK_GAP_MS = 10 * 60 * 1000;
+
 function setup() {
   const graffiti = useGraffiti();
   const session = useGraffitiSession();
@@ -201,15 +203,34 @@ function setup() {
   /**
    * Messages enriched with user profile information
    */
-  const messagesWithProfiles = computed(() =>
-    chatMessages.value.map(msg => ({
-      ...msg,
-      profile: resolvedProfileMap.value[msg.value.user] ?? {
-        name: handleCache.value.get(msg.value.user) ?? msg.value.user,
-        avatarUrl: null
-      }
-    }))
-  );
+  const messagesWithProfiles = computed(() => {
+    const orderedMessages = [...chatMessages.value].sort(
+      (a, b) => a.value.published - b.value.published
+    );
+
+    function isSameChunk(firstMessage, secondMessage) {
+      if (!firstMessage || !secondMessage) return false;
+      if (firstMessage.value.user !== secondMessage.value.user) return false;
+
+      return Math.abs(secondMessage.value.published - firstMessage.value.published) < MESSAGE_CHUNK_GAP_MS;
+    }
+
+    return orderedMessages.map((msg, index) => {
+      const previousMessage = orderedMessages[index - 1];
+      const nextMessage = orderedMessages[index + 1];
+      const user = msg.value.user;
+
+      return {
+        ...msg,
+        isFirstInChunk: !isSameChunk(previousMessage, msg),
+        isLastInChunk: !isSameChunk(msg, nextMessage),
+        profile: resolvedProfileMap.value[user] ?? {
+          name: handleCache.value.get(user) ?? user,
+          avatarUrl: null
+        }
+      };
+    });
+  });
 
   const messagesEnd = ref(null);
 

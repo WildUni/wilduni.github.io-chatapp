@@ -170,6 +170,10 @@ ul {
   align-items: center;
 }
 
+.avatar-placeholder {
+  width: 60px;
+}
+
 .message-avatar {
   --size: 60px;
 }
@@ -226,6 +230,22 @@ ul {
 .message-wrapper.own-message {
   align-self: flex-end;
   flex-direction: row-reverse;
+}
+
+.message-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message-wrapper.own-message .message-stack {
+  align-items: flex-end;
+}
+
+.message-chunk-name {
+  color: #454545;
+  font-weight: 600;
+  padding: 0 4px;
 }
 
 wa-card {
