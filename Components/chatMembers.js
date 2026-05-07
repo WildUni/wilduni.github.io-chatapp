@@ -13,6 +13,15 @@ function setup() {
   const chatStore = useChatStore();
   const { activeChatId, activeChatRootId } = storeToRefs(chatStore);
 
+  const shareChatId = computed(() => activeChatRootId.value ?? activeChatId.value);
+
+  const joinChatLink = computed(() => {
+    if (!shareChatId.value) return "";
+
+    const { origin, pathname, search } = window.location;
+    return `${origin}${pathname}${search}#/join/${encodeURIComponent(shareChatId.value)}`;
+  });
+
   function displayGraffitiHandle(handle) {
     return handle?.endsWith(".graffiti.actor")
       ? handle.slice(0, -".graffiti.actor".length)
@@ -194,6 +203,8 @@ function setup() {
 
   return {
     activeChatId,
+    shareChatId,
+    joinChatLink,
     members,
   };
 }

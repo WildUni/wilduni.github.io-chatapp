@@ -1,0 +1,54 @@
+<main class="join-page">
+    <section class="join-panel">
+        <wa-avatar
+            label="Chat image"
+            :image.prop="chatImageUrl || ''"
+            class="join-chat-avatar"
+        ></wa-avatar>
+
+        <div class="join-chat-heading">
+            <p class="join-eyebrow">Chat invitation</p>
+            <h1>{{ chatName }}</h1>
+            <p class="join-chat-id">{{ chatId }}</p>
+        </div>
+
+        <div v-if="previewMembers.length" class="join-members-preview">
+            <div class="join-members-stack">
+                <wa-avatar
+                    v-for="member in previewMembers"
+                    :key="member.user"
+                    label="Member avatar"
+                    :image.prop="member.profile.avatarUrl || ''"
+                    class="join-member-avatar"
+                ></wa-avatar>
+            </div>
+            <div class="join-member-names">
+                <span v-for="(member, index) in previewMembers" :key="member.user">
+                    {{ member.profile.name }}{{ index < previewMembers.length - 1 ? ", " : "" }}
+                </span>
+            </div>
+        </div>
+
+        <p v-else class="join-members-empty">
+            No current members are visible yet.
+        </p>
+
+        <p v-if="joinError" class="form-error">Could not join this chat. Please check the link and try again.</p>
+
+        <div class="join-actions">
+            <wa-button
+                variant="brand"
+                @click="confirmJoin"
+                :disabled.prop="isJoining || !chatExists"
+            >
+                <wa-spinner v-if="isJoining"></wa-spinner>
+                <wa-icon name="right-to-bracket" v-else slot="start"></wa-icon>
+                {{ isJoining ? "Joining..." : chatExists ? "Join Chat" : "Chat Unavailable" }}
+            </wa-button>
+
+            <wa-button appearance="plain" @click="goHome">
+                Cancel
+            </wa-button>
+        </div>
+    </section>
+</main>

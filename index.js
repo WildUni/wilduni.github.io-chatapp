@@ -77,6 +77,13 @@ const router = createRouter({
       component: loadComponent("home"), 
       meta: { requiresAuth: true } 
     },
+
+    {
+      path: "/join/:chatId",
+      name: "join",
+      component: loadComponent("join"),
+      meta: { requiresAuth: true }
+    },
     
     // User Profile Page (with dynamic user actor ID)
     { 

@@ -78,19 +78,27 @@
 
     <div slot="main-header">
         <div v-if="activeChatId" class="chat-name-wrapper">
-            <wa-avatar
-                label="Chat image"
-                :image.prop="activeChatImageUrl || ''"
-                class="chat-header-avatar"
-            ></wa-avatar>
-            <h1>{{activeChatName}}</h1>
-            <wa-copy-button 
-                :value="activeChatId"
-                copy-label="Click to Copy Chat Id"
-                success-label="Chat Id Copied"
-                error-label="Whoops, your browser doesn't support this!"
+            <wa-breadcrumb class="chat-breadcrumb">
+                <wa-breadcrumb-item
+                    v-for="(item, index) in chatBreadcrumb"
+                    :key="item.isEllipsis ? 'ellipsis' : item.id"
+                    @click="navigateBreadcrumb(item)"
+                    :class="{
+                        'chat-breadcrumb-link': !item.isEllipsis && item.id !== activeChatId,
+                        'chat-breadcrumb-current': item.id === activeChatId,
+                        'chat-breadcrumb-ellipsis': item.isEllipsis
+                    }"
                 >
-            </wa-copy-button>
+                    <wa-avatar
+                        v-if="item.showAvatar"
+                        slot="start"
+                        label="Chat image"
+                        :image.prop="activeChatImageUrl || ''"
+                        class="chat-header-avatar"
+                    ></wa-avatar>
+                    <span class="chat-breadcrumb-name">{{ item.displayName }}</span>
+                </wa-breadcrumb-item>
+            </wa-breadcrumb>
         </div>
         <h1 v-else>Welcome to Chatree!</h1>
         <div v-if="activeChatId" slot="main-header-actions" class="main-header-actions">

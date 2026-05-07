@@ -1,5 +1,9 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import {
+  useGraffitiSession,
+  useGraffitiDiscover,
+} from "@graffiti-garden/wrapper-vue";
 import loadChatList from "../Components/chatList.js";
 import loadChatTree from "../Components/chatTree.js";
 import loadChatInput from "../Components/chatInput.js";
@@ -17,6 +21,7 @@ import { delay } from "../index.js";
 function setup() {
   const route = useRoute()
   const router = useRouter()
+  const session = useGraffitiSession();
   const chatStore = useChatStore();
   const {activeChatId, 
     activeChatName, 
@@ -40,6 +45,132 @@ function setup() {
 
   const branchParentName = computed(() => {
     return branchParent.value?.name || activeChatName.value || "No chat selected";
+  });
+
+  const branchChannels = computed(() => {
+    return session.value && activeChatRootId.value
+      ? [`chat:${activeChatRootId.value}:Descendants`]
+      : [];
+  });
+
+  const { objects: branchActivities } = useGraffitiDiscover(
+    branchChannels,
+    {
+      properties: {
+        value: {
+          required: ["action", "chatId", "name", "published", "parentChatId", "rootChatId"],
+          properties: {
+            action: { type: "string" },
+            chatId: { type: "string" },
+            name: { type: "string" },
+            published: { type: "number" },
+            parentChatId: { type: "string" },
+            rootChatId: { type: "string" },
+          },
+        },
+      },
+    },
+    session
+  );
+
+  const branchMap = computed(() => {
+    return branchActivities.value.reduce((acc, obj) => {
+      const v = obj.value;
+
+      if (
+        (v.action !== "Create" && v.action !== "Rename" && v.action !== "Delete") ||
+        !v.chatId ||
+        !v.parentChatId ||
+        !v.rootChatId ||
+        !v.published
+      ) {
+        return acc;
+      }
+
+      const existing = acc[v.chatId];
+
+      if (!existing || existing.published < v.published) {
+        acc[v.chatId] = {
+          ...existing,
+          ...v,
+        };
+      }
+
+      return acc;
+    }, {});
+  });
+
+  const chatListMap = computed(() => {
+    return chatList.value.reduce((acc, chat) => {
+      acc[chat.value.chatId] = chat.value;
+      return acc;
+    }, {});
+  });
+
+  function getBreadcrumbNode(chatId) {
+    if (!chatId) return null;
+
+    const branch = branchMap.value[chatId];
+    const chat = chatListMap.value[chatId];
+
+    if (branch?.action === "Delete") return null;
+    if (!branch && !chat && chatId !== activeChatId.value) return null;
+
+    return {
+      id: chatId,
+      name: branch?.name || chat?.chatName || (chatId === activeChatId.value ? activeChatName.value : null) || "Untitled chat",
+      rootChatId: branch?.rootChatId || chat?.rootChatId || activeChatRootId.value || chatId,
+      parentChatId: branch?.parentChatId || chat?.parentChatId || chatId,
+    };
+  }
+
+  const fullBreadcrumb = computed(() => {
+    const trail = [];
+    const visited = new Set();
+    let chatId = activeChatId.value;
+
+    while (chatId && !visited.has(chatId)) {
+      visited.add(chatId);
+
+      const node = getBreadcrumbNode(chatId);
+      if (!node) break;
+
+      trail.unshift(node);
+
+      if (node.parentChatId === chatId) break;
+      chatId = node.parentChatId;
+    }
+
+    return trail;
+  });
+
+  const chatBreadcrumb = computed(() => {
+    const needsEllipsis = fullBreadcrumb.value.length > 3;
+    const visibleItems = needsEllipsis
+      ? fullBreadcrumb.value.slice(-3)
+      : [...fullBreadcrumb.value];
+    const items = needsEllipsis
+      ? [
+        {
+          ...visibleItems[0],
+          displayName: "...",
+          isEllipsis: true,
+          showAvatar: true,
+        },
+        ...visibleItems.map(item => ({
+          ...item,
+          showAvatar: false,
+        })),
+      ]
+      : visibleItems.map((item, index) => ({
+        ...item,
+        showAvatar: index === 0,
+      }));
+
+    return items.map(item => ({
+      ...item,
+      displayName: item.displayName || item.name,
+    }));
   });
 
   watch(
@@ -172,6 +303,12 @@ function setup() {
     showTimestampColumn.value = !showTimestampColumn.value;
   }
 
+  function navigateBreadcrumb(item) {
+    if (!item?.id || item.isEllipsis || item.id === activeChatId.value) return;
+
+    setActiveChat(item.id, item.name, item.rootChatId, item.parentChatId);
+  }
+
   /**
    * Combined watch: Handle route changes and update chat info from list
    * - Update active chat ID when route changes (page refresh support)
@@ -228,6 +365,7 @@ function setup() {
     activeNavigationTab,
     branchName,
     branchParentName,
+    chatBreadcrumb,
     isCreating,
     createError,
     createSuccess,
@@ -245,7 +383,8 @@ function setup() {
     isLeaving,
     leaveSuccess,
     showTimestampColumn,
-    toggleTimestampColumn
+    toggleTimestampColumn,
+    navigateBreadcrumb
   }
 }
 

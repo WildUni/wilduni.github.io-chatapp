@@ -9,6 +9,34 @@
 
 <wa-drawer label="Chat Members" id="chat-members-drawer" placement="end" class="chat-side-panel">
     <div class="chat-members-wrapper">
+        <div v-if="activeChatId" class="chat-share-panel">
+            <div class="chat-share-row">
+                <div class="chat-share-text">
+                    <div class="chat-share-label">Chat ID</div>
+                    <div class="chat-share-value">{{ shareChatId }}</div>
+                </div>
+                <wa-copy-button
+                    :value="shareChatId"
+                    copy-label="Copy chat ID"
+                    success-label="Chat ID copied"
+                    error-label="Copy failed"
+                ></wa-copy-button>
+            </div>
+
+            <div class="chat-share-row">
+                <div class="chat-share-text">
+                    <div class="chat-share-label">Join link</div>
+                    <div class="chat-share-value">{{ joinChatLink }}</div>
+                </div>
+                <wa-copy-button
+                    :value="joinChatLink"
+                    copy-label="Copy join link"
+                    success-label="Join link copied"
+                    error-label="Copy failed"
+                ></wa-copy-button>
+            </div>
+        </div>
+
         <div class="chat-members-summary">
             {{ members.length }} {{ members.length === 1 ? "member" : "members" }}
         </div>
