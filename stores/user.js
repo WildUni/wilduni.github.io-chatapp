@@ -6,7 +6,7 @@ import { defineStore } from "pinia";
 import {
   useGraffiti,
   useGraffitiSession,
-  useGraffitiDiscover
+  useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 
 // ============================================================
@@ -16,6 +16,12 @@ export const useUserStore = defineStore("user", () => {
   // Access Graffiti API and user session
   const graffiti = useGraffiti();
   const session = useGraffitiSession();
+
+  function displayGraffitiHandle(handle) {
+    return handle?.endsWith(".graffiti.actor")
+      ? handle.slice(0, -".graffiti.actor".length)
+      : handle;
+  }
 
   // ============================================================
   // STATE - User Activities Discovery
@@ -119,10 +125,39 @@ export const useUserStore = defineStore("user", () => {
   // ============================================================
   // COMPUTED - Profile Text Fields
   // ============================================================
+
+  const profileHandle = ref(null);
+  let profileHandleRequest = 0;
+
+  watch(
+    () => session.value?.actor,
+    async (actor) => {
+      const request = ++profileHandleRequest;
+
+      if (!actor) {
+        profileHandle.value = null;
+        return;
+      }
+
+      try {
+        const handle = await graffiti.actorToHandle(actor);
+        if (request === profileHandleRequest) {
+          profileHandle.value = displayGraffitiHandle(handle);
+        }
+      } catch (err) {
+        console.error("Failed to resolve actor handle:", err);
+        if (request === profileHandleRequest) {
+          profileHandle.value = actor;
+        }
+      }
+    },
+    { immediate: true }
+  );
   
   // Get user's display name
   const profileName = computed(() =>
-    userInformation.value.ProfileName?.value?.name ?? null
+    userInformation.value.ProfileName?.value?.name
+      ?? profileHandle.value
   );
 
   // Get user's bio/description
@@ -149,7 +184,7 @@ export const useUserStore = defineStore("user", () => {
       value: {
         user: session.value.actor,
         action: 'ProfileName',
-        name: name,
+        name: trimmed,
         published: Date.now(),
       },
       channels: [`user:${session.value.actor}:Activities`],
@@ -234,11 +269,6 @@ export const useUserStore = defineStore("user", () => {
   // COMPUTED - Helper Flags
   // ============================================================
   
-  // Check if user has set a profile name
-  const hasProfileName = computed(() =>
-    !!profileName.value?.trim()
-  );
-
   // ============================================================
   // EXPORTS - Store API
   // ============================================================
@@ -256,7 +286,5 @@ export const useUserStore = defineStore("user", () => {
     updateProfileBio,
     handleFileUpload,
 
-    // Helper flags
-    hasProfileName
   };
 });

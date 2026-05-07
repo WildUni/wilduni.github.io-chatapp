@@ -395,6 +395,26 @@ wa-drawer::part(footer) {
   --indent-guide-width: 1px;
 }
 
+.branch-create-form {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.branch-create-form input {
+  min-width: 0;
+  flex: 1;
+}
+
+.branch-create-error {
+  color: #b42318;
+  margin-bottom: 12px;
+}
+
+.tree-node-label {
+  cursor: pointer;
+}
+
 
 .chatListItem-wrapper{
     display: flex;

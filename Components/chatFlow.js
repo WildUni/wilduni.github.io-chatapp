@@ -15,6 +15,12 @@ function setup() {
   const chatStore = useChatStore();
   const { activeChatId } = storeToRefs(chatStore);
 
+  function displayGraffitiHandle(handle) {
+    return handle?.endsWith(".graffiti.actor")
+      ? handle.slice(0, -".graffiti.actor".length)
+      : handle;
+  }
+
   /**
    * Get message channel for current active chat
    */
@@ -48,6 +54,39 @@ function setup() {
   const usersInView = computed(() => {
     return [...new Set(chatMessages.value.map(m => m.value.user))];
   });
+
+  const handleCache = ref(new Map());
+  const pendingHandles = new Map();
+
+  async function resolveHandle(user) {
+    if (!user) return null;
+
+    const cache = handleCache.value;
+    if (cache.has(user)) return cache.get(user);
+    if (pendingHandles.has(user)) return pendingHandles.get(user);
+
+    const pending = graffiti.actorToHandle(user)
+      .then((handle) => {
+        const displayHandle = displayGraffitiHandle(handle);
+        handleCache.value = new Map(handleCache.value).set(user, displayHandle);
+        return displayHandle;
+      })
+      .catch((err) => {
+        console.error("Failed to resolve actor handle:", err);
+        handleCache.value = new Map(handleCache.value).set(user, user);
+        return user;
+      })
+      .finally(() => {
+        pendingHandles.delete(user);
+      });
+
+    pendingHandles.set(user, pending);
+    return pending;
+  }
+
+  watch(usersInView, async (users) => {
+    await Promise.all(users.map(resolveHandle));
+  }, { immediate: true });
 
   // Discover all user profiles for users in view
   const { objects: profileObjects } = useGraffitiDiscover(
@@ -83,7 +122,11 @@ function setup() {
 
       // Initialize user profile if not exists
       if (!profiles[user]) {
-        profiles[user] = { name: null, avatarUrl: null, _ts: {} };
+        profiles[user] = {
+          name: handleCache.value.get(user) ?? user,
+          avatarUrl: null,
+          _ts: {}
+        };
       }
 
       const userProfile = profiles[user];
@@ -161,7 +204,10 @@ function setup() {
   const messagesWithProfiles = computed(() =>
     chatMessages.value.map(msg => ({
       ...msg,
-      profile: resolvedProfileMap.value[msg.value.user]
+      profile: resolvedProfileMap.value[msg.value.user] ?? {
+        name: handleCache.value.get(msg.value.user) ?? msg.value.user,
+        avatarUrl: null
+      }
     }))
   );
 

@@ -79,7 +79,7 @@ export const useChatStore = defineStore("chat", () => {
     const chatId = crypto.randomUUID();
     const parentChatId = parent ? parent : chatId;
     const rootChatId = root ? root : chatId;
-
+    console.log(newChatName.value, parentChatId, rootChatId)
 
     try {
       const now = Date.now();
@@ -172,6 +172,7 @@ export const useChatStore = defineStore("chat", () => {
 
     return !createError.value;
   }
+
 
   // ============================================================
   // COMPUTED - Chat List (User's Active Chats)

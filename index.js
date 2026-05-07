@@ -147,7 +147,7 @@ app
   .use(pinia) // State management
   .use(router) // Routing
   .use(GraffitiPlugin, {
-    graffiti: new GraffitiLocal(), // Use local storage (development)
-    // graffiti: new GraffitiDecentralized(), // Uncomment to use decentralized network
+    // graffiti: new GraffitiLocal(), // Use local storage (development)
+    graffiti: new GraffitiDecentralized(), // Uncomment to use decentralized network
   })
   .mount('#app'); // Mount to DOM element with id="app"

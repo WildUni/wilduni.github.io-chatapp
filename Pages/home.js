@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import loadChatList from "../Components/chatList.js";
 import loadChatTree from "../Components/chatTree.js";
@@ -9,22 +9,13 @@ import loadCreateChatButton from '../Components/createChat.js'
 
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
-import { useUserStore } from "../stores/user.js";
 
-import {
-  GraffitiPlugin,
-  useGraffiti,
-  useGraffitiSession,
-  useGraffitiDiscover,
-} from "@graffiti-garden/wrapper-vue";
 import { delay } from "../index.js";
 
 
 function setup() {
   const route = useRoute()
   const router = useRouter()
-  const session = useGraffitiSession();
-
   const chatStore = useChatStore();
   const {activeChatId, 
     activeChatName, 
@@ -33,13 +24,11 @@ function setup() {
     activeChatRootId,
     isLeaving,
     leaveSuccess} = storeToRefs(chatStore)
-  const userStore = useUserStore();
-  const {profileName, profileImageUrl, hasProfileName} = storeToRefs(userStore);
-
-  const firstName = ref("");
 
   /**
    * Set active chat and update route
+   * Chat-list selections pass their own chat ID as rootId.
+   * Branch-tree selections pass the branch ID as chatId and keep the original rootId.
    */
   function setActiveChat(chatId, chatName, rootId) {
     activeChatId.value = chatId;
@@ -56,14 +45,6 @@ function setup() {
   }
 
   /**
-   * Complete user onboarding by setting profile name
-   */
-  async function completeOnboarding() {
-    if (!firstName.value.trim()) return;
-    await userStore.updateProfileName(firstName.value);
-  }
-
-  /**
    * Leave active chat and navigate home
    */
   async function leaveActiveChat(chatId) {
@@ -75,26 +56,40 @@ function setup() {
   /**
    * Combined watch: Handle route changes and update chat info from list
    * - Update active chat ID when route changes (page refresh support)
-   * - Update active chat name and root ID from chat list data
+   * - Use chat list data for root chats
+   * - Preserve the known root ID for branch chats, which are not in chatList
    */
   watch(
     () => [route.params.chatId, chatList.value],
     ([chatId, chats]) => {
+      const routeChatId = chatId || null;
+      const knownActiveName = activeChatName.value;
+      const knownRootId = activeChatRootId.value;
+
       // Update active chat from route params
-      activeChatId.value = chatId || null;
+      activeChatId.value = routeChatId;
 
-      // Find and extract info from chat list
-      if (chats && activeChatId.value) {
-        const activeChat = chats.find(
-          chat => chat.value.chatId === activeChatId.value
-        );
-
-        activeChatName.value = activeChat?.value.chatName ?? null;
-        activeChatRootId.value = activeChat?.value.rootChatId ?? activeChatId.value;
-      } else {
+      if (!routeChatId) {
         activeChatName.value = null;
         activeChatRootId.value = null;
+        return;
       }
+
+      // Find and extract info from chat list
+      if (chats) {
+        const activeChat = chats.find(
+          chat => chat.value.chatId === routeChatId
+        );
+
+        if (activeChat) {
+          activeChatName.value = activeChat.value.chatName;
+          activeChatRootId.value = activeChat.value.rootChatId ?? activeChat.value.chatId;
+          return;
+        }
+      }
+
+      activeChatName.value = knownActiveName;
+      activeChatRootId.value = knownRootId ?? routeChatId;
     },
     { immediate: true }
   );
@@ -107,12 +102,7 @@ function setup() {
     activeChatRootId,
     createNewChat: chatStore.createNewChat,
     newChatName,
-    profileName, 
-    profileImageUrl,
     leaveActiveChat,
-    firstName,
-    hasProfileName,
-    completeOnboarding,
     isLeaving,
     leaveSuccess
   }

@@ -1,34 +1,5 @@
 
 <wa-page>
-    <wa-dialog
-        label="Choose a username"
-        :open.prop="!hasProfileName"
-        prevent-close
-        >
-        <p>Please enter an username to continue! </p>
-        <p>This name is used solely for display purposes.</p>
-        <input
-            v-model="firstName"
-            placeholder="Username (20 characters max)"
-            required
-            @keydown.enter="completeOnboarding"
-            maxlength="30"
-        />
-
-        <wa-button
-            slot="footer"
-            variant="brand"
-            @click="completeOnboarding"
-            :disabled.prop="!firstName.trim()"
-        >
-            Continue
-        </wa-button>
-    </wa-dialog>
-
-
-
-
-
     <wa-tab-group slot="navigation" withoutScrollControls>
         <wa-tab panel="chats">
             Chats

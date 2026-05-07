@@ -1,50 +1,65 @@
-import { ref, computed, watch } from "vue";
+import { computed, ref } from "vue";
 import {
-  GraffitiPlugin,
-  useGraffiti,
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 import { useChatStore } from "../stores/chat.js";
-import { storeToRefs } from "pinia"
+import { storeToRefs } from "pinia";
 
 function setup(props, { emit }) {
-    const graffiti = useGraffiti();
     const session = useGraffitiSession();
     const chatStore = useChatStore();
-    const {activeChatRootId} = storeToRefs(chatStore);
+    const {
+      activeChatId,
+      activeChatRootId,
+      chatList,
+      isCreating,
+      createError,
+      createSuccess,
+      newChatName,
+    } = storeToRefs(chatStore);
+    const branchName = ref("");
 
     const channels = computed(() => {
-      return session.value ? [`chat:${activeChatRootId.value}:Descendants`] : [];
+      return session.value && activeChatRootId.value
+        ? [`chat:${activeChatRootId.value}:Descendants`]
+        : [];
     });
 
-    const {objects:branchActivities} = useGraffitiDiscover(
+    const { objects: branchActivities } = useGraffitiDiscover(
       channels,
       {
-      properties: {
-        value: {
-          required: ["action", "chatId", "name", "published", "parentChatId", "rootChatId"],
-          properties: {
-            action: { type: "string" },
-            chatId: { type: "string" },
-            name: { type: "string" },
-            published: { type: "number" },
-            parentChatId: { type: "string" },
-            rootChatId: { type: "string" },
+        properties: {
+          value: {
+            required: ["action", "chatId", "name", "published", "parentChatId", "rootChatId"],
+            properties: {
+              action: { type: "string" },
+              chatId: { type: "string" },
+              name: { type: "string" },
+              published: { type: "number" },
+              parentChatId: { type: "string" },
+              rootChatId: { type: "string" },
+            },
           },
         },
       },
-      },
       session
-    )
+    );
     
-
     const branches = computed(() => {
       return Object.values(
         branchActivities.value.reduce((acc, obj) => {
           const v = obj.value;
 
-          if (!v.chatId || !v.published) return acc;
+          if (
+            v.action !== "Create" ||
+            !v.chatId ||
+            !v.parentChatId ||
+            !v.rootChatId ||
+            !v.published
+          ) {
+            return acc;
+          }
 
           const existing = acc[v.chatId];
 
@@ -54,28 +69,27 @@ function setup(props, { emit }) {
 
           return acc;
         }, {})
-      );
+      ).sort((a, b) => a.value.published - b.value.published);
     });
 
 
-    const chatTree = computed(()=>{
-      const chat_to_parent = {}
-      // console.log(branches.value)
-      for(const branch of branches.value){
-        chat_to_parent[branch.value.chatId] = branch.value.parentChatId;
-      }
-      
-      const parent_to_chats = {}
-      for(const [chat, parent] of Object.entries(chat_to_parent)){
-        if(!parent_to_chats[parent]){
-          parent_to_chats[parent] = [];
+    const childrenByParent = computed(() => {
+      const children = {};
+
+      for (const branch of branches.value) {
+        const { chatId, parentChatId } = branch.value;
+
+        if (chatId === parentChatId) continue;
+
+        if (!children[parentChatId]) {
+          children[parentChatId] = [];
         }
-        if(chat === parent) continue
-        parent_to_chats[parent].push(chat)
+
+        children[parentChatId].push(chatId);
       }
 
-      return parent_to_chats
-    })
+      return children;
+    });
 
 
     const chatMap = computed(() => {
@@ -86,51 +100,91 @@ function setup(props, { emit }) {
       return map;
     });
 
-    const nestedTree = ref([]);
+    const rootChatName = computed(() => {
+      const rootChat = chatList.value.find(
+        chat => chat.value.chatId === activeChatRootId.value
+      );
 
-    watch(
-      activeChatRootId,
-      () => {
-        const parentMap = chatTree.value;
-        const map = chatMap.value;
+      return rootChat?.value.chatName ?? null;
+    });
 
-        function buildNode(chatId) {
-          const node = map[chatId];
+    function constructTree(rootChatId, visited = new Set()) {
+      if (!rootChatId || visited.has(rootChatId)) return null;
 
-          return {
-            id: chatId,
-            name: node?.name || "General",
-            rootChatId: node?.rootChatId || activeChatRootId.value,
-            children: (parentMap[chatId] || []).map(buildNode)
-          };
-        }
+      visited.add(rootChatId);
 
-        const roots = activeChatRootId.value ? [activeChatRootId.value] : [];
-        nestedTree.value = roots.map(buildNode);
-      },
-      { immediate: true }
-    );
+      const node = chatMap.value[rootChatId];
+      const fallbackName = rootChatId === activeChatRootId.value
+        ? rootChatName.value + " (General)"
+        : null;
+      const childNodes = (childrenByParent.value[rootChatId] || [])
+        .map(childId => constructTree(childId, new Set(visited)))
+        .filter(Boolean);
 
+      return {
+        id: rootChatId,
+        name: node?.name || fallbackName || "Untitled chat",
+        rootChatId: node?.rootChatId || activeChatRootId.value || rootChatId,
+        children: childNodes,
+      };
+    }
 
+    const nestedTree = computed(() => {
+      const root = constructTree(activeChatRootId.value);
+      return root ? [root] : [];
+    });
 
     function emitUpdateChat(chatId, chatName, rootId) {
-      // console.log(chatId, chatName, rootId)
-      // console.log(nestedTree.value)
       emit("update-active-chat", chatId, chatName, rootId);
     }
+
+    async function createBranchUnderActiveChat() {
+      const name = branchName.value.trim();
+
+      if (!name || !activeChatId.value || !activeChatRootId.value) return;
+
+      const previousChatName = newChatName.value;
+      newChatName.value = name;
+
+      try {
+        const success = await chatStore.createNewChat(
+          activeChatId.value,
+          activeChatRootId.value,
+        );
+
+        if (success) {
+          branchName.value = "";
+        }
+      } finally {
+        newChatName.value = previousChatName;
+      }
+    }
+
     return {
-      chatTree,
+      chatTree: childrenByParent,
+      constructTree,
       nestedTree,
-      emitUpdateChat
+      branchName,
+      isCreating,
+      createError,
+      createSuccess,
+      createBranchUnderActiveChat,
+      emitUpdateChat,
+      activeChatId
     };
 }
 
 const TreeNode = {
-  props: ["node"],
-  emits: ["update-active-chat"],
+  name: "TreeNode",
+  props: ["node", "activeChatId"],
+  emits: ["select-chat"],
   template: `
-    <wa-tree-item>
-      <span @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId)">
+    <wa-tree-item
+      expanded
+      :selected.prop="node.id === activeChatId"
+      @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId)"
+    >
+      <span class="tree-node-label">
         {{ node.name }}
       </span>
 
@@ -138,6 +192,7 @@ const TreeNode = {
         v-for="child in node.children"
         :key="child.id"
         :node="child"
+        :active-chat-id="activeChatId"
         @select-chat="(...args) => $emit('select-chat', ...args)"
       />
     </wa-tree-item>
