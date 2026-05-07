@@ -45,6 +45,7 @@ function setup() {
         {
           value: {
             action: "Message",
+            chatId: activeChatId.value,
             content: trimmedMessage,
             published: Date.now(),
             user: session.value?.actor

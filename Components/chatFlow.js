@@ -73,6 +73,7 @@ function setup() {
           required: ["action", "content", "published", 'user'],
           properties: {
             action: { const: "Message" },
+            chatId: { type: "string" },
             content: { type: "string" },
             published: { type: "number" },
             user: { type: "string" }
@@ -320,6 +321,19 @@ function setup() {
     () => messagesWithProfiles.value.length,
     () => scrollToLatestMessage(),
     { flush: "post", immediate: true }
+  );
+
+  watch(
+    () => [
+      activeChatId.value,
+      chatMessages.value.reduce((latest, msg) => Math.max(latest, msg.value.published ?? 0), 0),
+    ],
+    ([chatId, latestMessageAt]) => {
+      if (chatId && latestMessageAt) {
+        chatStore.markChatRead(chatId);
+      }
+    },
+    { immediate: true }
   );
 
   watch(

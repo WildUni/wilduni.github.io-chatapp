@@ -13,6 +13,7 @@ function setup(props, { emit }) {
       activeChatId,
       activeChatRootId,
       chatList,
+      hasUnreadByChatId,
     } = storeToRefs(chatStore);
 
     const channels = computed(() => {
@@ -133,6 +134,7 @@ function setup(props, { emit }) {
         name: node?.name || fallbackName || "Untitled chat",
         parentChatId: node?.parentChatId || rootChatId,
         rootChatId: node?.rootChatId || activeChatRootId.value || rootChatId,
+        hasUnread: Boolean(hasUnreadByChatId.value[rootChatId]),
         children: childNodes,
       };
     }
@@ -210,6 +212,11 @@ const TreeNode = {
           class="tree-node-label"
           @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId, node.parentChatId)"
         >
+          <span
+            v-if="node.hasUnread"
+            class="unread-dot branch-unread-dot"
+            aria-label="Unread messages"
+          ></span>
           {{ node.name }}
         </span>
 

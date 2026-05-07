@@ -467,7 +467,7 @@ export const useChatStore = defineStore("chat", () => {
    * Filters to only show chats where the latest action is 'Join'
    * (effectively hides left/deleted chats)
    */
-  const chatList = computed(() => {
+  const joinedChatList = computed(() => {
     // Find the most recent membership record for each chat
     const latestByChat = activities.value.reduce((acc, obj) => {
       const { chatId, published } = obj.value;
@@ -485,16 +485,23 @@ export const useChatStore = defineStore("chat", () => {
     }, {});
 
     // Filter to only show chats where user is currently joined
-    const ret = Object.values(latestByChat).filter(
+    return Object.values(latestByChat).filter(
       chat => chat.value.value === 'Join'
     );
+  });
 
-    return ret;
+  const chatList = computed(() => {
+    return [...joinedChatList.value].sort((a, b) => {
+      const latestA = latestActivityAtByRootChatId.value[a.value.chatId] ?? a.value.published ?? 0;
+      const latestB = latestActivityAtByRootChatId.value[b.value.chatId] ?? b.value.published ?? 0;
+
+      return latestB - latestA;
+    });
   });
 
   const chatActivityChannels = computed(() => {
     return session.value
-      ? chatList.value.map(chat => `chat:${chat.value.chatId}:Activities`)
+      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Activities`)
       : [];
   });
 
@@ -567,6 +574,238 @@ export const useChatStore = defineStore("chat", () => {
     },
     { immediate: true }
   );
+
+  const allDescendantChannels = computed(() => {
+    return session.value
+      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Descendants`)
+      : [];
+  });
+
+  const { objects: allDescendantActivities } = useGraffitiDiscover(
+    allDescendantChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'chatId', 'name', 'published', 'parentChatId', 'rootChatId'],
+          properties: {
+            action: { type: 'string' },
+            chatId: { type: 'string' },
+            name: { type: 'string' },
+            published: { type: 'number' },
+            parentChatId: { type: 'string' },
+            rootChatId: { type: 'string' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  const activeBranchesByChatId = computed(() => {
+    return allDescendantActivities.value.reduce((acc, obj) => {
+      const v = obj.value;
+
+      if (
+        (v.action !== 'Create' && v.action !== 'Rename' && v.action !== 'Delete') ||
+        !v.chatId ||
+        !v.parentChatId ||
+        !v.rootChatId ||
+        !v.published
+      ) {
+        return acc;
+      }
+
+      const existing = acc[v.chatId];
+
+      if (!existing || existing.value.published < v.published) {
+        acc[v.chatId] = {
+          ...obj,
+          value: {
+            ...existing?.value,
+            ...v,
+          },
+        };
+      }
+
+      return acc;
+    }, {});
+  });
+
+  const branchIdsByRootChatId = computed(() => {
+    const branchesByRoot = {};
+
+    for (const chat of joinedChatList.value) {
+      branchesByRoot[chat.value.chatId] = new Set([chat.value.chatId]);
+    }
+
+    for (const branch of Object.values(activeBranchesByChatId.value)) {
+      const { action, chatId, rootChatId } = branch.value;
+
+      if (action === 'Delete' || !branchesByRoot[rootChatId]) continue;
+
+      branchesByRoot[rootChatId].add(chatId);
+    }
+
+    return Object.fromEntries(
+      Object.entries(branchesByRoot).map(([rootChatId, branchIds]) => [
+        rootChatId,
+        [...branchIds],
+      ])
+    );
+  });
+
+  const messageChannels = computed(() => {
+    if (!session.value) return [];
+
+    const branchIds = new Set(
+      Object.values(branchIdsByRootChatId.value).flat()
+    );
+
+    return [...branchIds].map(chatId => `chat:${chatId}:Messages`);
+  });
+
+  const { objects: allChatMessages } = useGraffitiDiscover(
+    messageChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'content', 'published', 'user'],
+          properties: {
+            action: { const: 'Message' },
+            chatId: { type: 'string' },
+            content: { type: 'string' },
+            published: { type: 'number' },
+            user: { type: 'string' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  function getMessageChatId(obj) {
+    if (obj.value.chatId) return obj.value.chatId;
+
+    const channels = [
+      ...(obj.channels ?? []),
+      ...(obj.object?.channels ?? []),
+      obj.channel,
+    ].filter(Boolean);
+    const messageChannel = channels.find(channel => /^chat:[^:]+:Messages$/.test(channel));
+
+    return messageChannel?.split(':')[1] ?? null;
+  }
+
+  const latestMessageAtByChatId = computed(() => {
+    return allChatMessages.value.reduce((acc, obj) => {
+      const chatId = getMessageChatId(obj);
+      const { published } = obj.value;
+
+      if (!chatId || !published) return acc;
+
+      acc[chatId] = Math.max(acc[chatId] ?? 0, published);
+      return acc;
+    }, {});
+  });
+
+  const latestIncomingMessageAtByChatId = computed(() => {
+    return allChatMessages.value.reduce((acc, obj) => {
+      const chatId = getMessageChatId(obj);
+      const { published, user } = obj.value;
+
+      if (!chatId || !published || user === session.value?.actor) return acc;
+
+      acc[chatId] = Math.max(acc[chatId] ?? 0, published);
+      return acc;
+    }, {});
+  });
+
+  const latestActivityAtByRootChatId = computed(() => {
+    return Object.entries(branchIdsByRootChatId.value).reduce((acc, [rootChatId, branchIds]) => {
+      const latestBranchMessageAt = branchIds.reduce((latest, branchId) => {
+        return Math.max(latest, latestMessageAtByChatId.value[branchId] ?? 0);
+      }, 0);
+
+      acc[rootChatId] = latestBranchMessageAt;
+      return acc;
+    }, {});
+  });
+
+  const readReceiptChannels = computed(() => {
+    return session.value ? [`user:${session.value.actor}:ReadReceipts`] : [];
+  });
+
+  const { objects: readReceipts } = useGraffitiDiscover(
+    readReceiptChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'chatId', 'published'],
+          properties: {
+            action: { const: 'Read' },
+            chatId: { type: 'string' },
+            published: { type: 'number' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  const latestReadAtByChatId = computed(() => {
+    return readReceipts.value.reduce((acc, obj) => {
+      const { chatId, published } = obj.value;
+
+      if (!chatId || !published) return acc;
+
+      acc[chatId] = Math.max(acc[chatId] ?? 0, published);
+      return acc;
+    }, {});
+  });
+
+  const hasUnreadByChatId = computed(() => {
+    return Object.fromEntries(
+      Object.entries(latestIncomingMessageAtByChatId.value).map(([chatId, latestIncomingAt]) => [
+        chatId,
+        latestIncomingAt > (latestReadAtByChatId.value[chatId] ?? 0),
+      ])
+    );
+  });
+
+  const hasUnreadByRootChatId = computed(() => {
+    return Object.fromEntries(
+      Object.entries(branchIdsByRootChatId.value).map(([rootChatId, branchIds]) => [
+        rootChatId,
+        branchIds.some(branchId => hasUnreadByChatId.value[branchId]),
+      ])
+    );
+  });
+
+  async function markChatRead(chatId) {
+    if (!session.value?.actor || !chatId) return false;
+
+    try {
+      await graffiti.post(
+        {
+          value: {
+            action: 'Read',
+            chatId,
+            published: Date.now(),
+          },
+          channels: [`user:${session.value.actor}:ReadReceipts`],
+          allowed: []
+        },
+        session.value
+      );
+    } catch (err) {
+      return false;
+    }
+
+    return true;
+  }
 
 
   // ============================================================
@@ -808,6 +1047,9 @@ export const useChatStore = defineStore("chat", () => {
 
     // Chat list
     chatList,
+    hasUnreadByChatId,
+    hasUnreadByRootChatId,
+    markChatRead,
 
     // Create chat
     newChatName,

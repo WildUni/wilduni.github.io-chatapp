@@ -4,6 +4,7 @@
             :chatId="chat.value.chatId"
             :chatName="chat.value.chatName"
             :chatImageUrl="chatImageUrls[chat.value.chatId] || ''"
+            :hasUnread="hasUnreadByRootChatId[chat.value.chatId]"
             @click="emitUpdateChat(chat.value.chatId, chat.value.chatName, chat.value.chatId, chat.value.chatId)"
         ></ChatListItem>
     </li>

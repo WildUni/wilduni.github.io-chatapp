@@ -1,6 +1,11 @@
 <div class="chat-list-item"  
   :class="{ selected: chatId === activeChatId }">
   <wa-avatar label="Chat image" :image.prop="chatImageUrl || ''"></wa-avatar>
+  <span
+    v-if="hasUnread"
+    class="unread-dot chat-unread-dot"
+    aria-label="Unread messages"
+  ></span>
   <div class="chatListItem-wrapper">
     <div class="chatListItem-name fade-text">{{chatName}}</div>
     <div class="chatListItem-id-wrapper fade-text">

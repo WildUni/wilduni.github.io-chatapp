@@ -680,6 +680,27 @@ wa-drawer::part(footer) {
   position: relative;
 }
 
+.unread-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #0b79ff;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.chat-unread-dot {
+  position: absolute;
+  left: 50px;
+  top: 18px;
+}
+
+.branch-unread-dot {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 .chat-settings-menu {
   margin-left: auto;
 }
