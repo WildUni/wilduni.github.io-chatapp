@@ -94,6 +94,15 @@
         </div>
         <h1 v-else>Welcome to Chatree!</h1>
         <div v-if="activeChatId" slot="main-header-actions" class="main-header-actions">
+            <wa-button
+                appearance="plain"
+                class="timestamp-column-toggle"
+                :aria-pressed="showTimestampColumn"
+                :title="showTimestampColumn ? 'Hide message timestamps' : 'Show message timestamps'"
+                @click="toggleTimestampColumn"
+            >
+                <wa-icon name="clock"></wa-icon>
+            </wa-button>
             <ChatMembers>hello</ChatMembers>
             <wa-button
                 appearance="outlined"
@@ -162,10 +171,10 @@
     
     <main>
         <section v-if="activeChatId">
-            <ChatFlow/>
+            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
         </section>
         <section v-else>
-            <ChatFlow/>
+            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
         </section>
     </main>
 

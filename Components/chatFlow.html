@@ -3,14 +3,35 @@
 
 <div v-if="messagesWithProfiles.length">
     <ul class='chatflow-wrapper'>
-        <li v-for="msg in messagesWithProfiles" :key="msg.url || `${msg.value.user}-${msg.value.published}`"> 
-            <Message :username="msg.profile?.name" 
-            :message-content="msg.value.content" 
-            :avatarUrl="msg.profile?.avatarUrl" 
-            :published="msg.value.published"
-            :is-own-message="msg.value.user === session?.actor"
-            :show-name="msg.isFirstInChunk"
-            :show-avatar="msg.isLastInChunk"/>
+        <li
+            v-for="msg in messagesWithProfiles"
+            :key="msg.url || `${msg.value.user}-${msg.value.published}`"
+            class="chatflow-message-item"
+        > 
+            <div v-if="msg.isFirstInTimeChunk" class="chatflow-timestamp">
+                {{ formatMessageTimestamp(msg.value.published) }}
+            </div>
+            <div
+                class="chatflow-message-row"
+                :class="{ 'show-time-column': showTimestampColumn }"
+            >
+                <div class="chatflow-message-lane">
+                    <Message :username="msg.profile?.name" 
+                    :message-content="msg.value.content" 
+                    :avatarUrl="msg.profile?.avatarUrl" 
+                    :published="msg.value.published"
+                    :is-own-message="msg.value.user === session?.actor"
+                    :show-name="msg.isFirstInChunk"
+                    :show-avatar="msg.isLastInChunk"/>
+                </div>
+                <div
+                    v-if="showTimestampColumn"
+                    class="chatflow-message-time"
+                    :title="formatMessageTimestamp(msg.value.published)"
+                >
+                    {{ formatMessageTime(msg.value.published) }}
+                </div>
+            </div>
         </li>
         <li ref="messagesEnd" class="messages-end"></li>
     </ul>

@@ -235,6 +235,7 @@ ul {
 .message-stack {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
 }
 
@@ -248,9 +249,9 @@ ul {
   padding: 0 4px;
 }
 
-wa-card {
-  min-width: 300px;
-  min-height: 60px;
+.message-wrapper .card-header {
+  width: fit-content;
+  max-width: min(68vw, 640px);
 }
 
 .message-wrapper.own-message .card-header::part(base) {
@@ -258,10 +259,14 @@ wa-card {
   border-color: #87bfff;
 }
 
-wa-card::part(body) {
-  padding-top: 0;
-  padding-bottom: 8px;
+.message-wrapper .card-header::part(body) {
+  padding: 10px 14px 12px;
   border-top: 0;
+}
+
+.message-body-content {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 wa-card::part(header) {
@@ -284,6 +289,67 @@ wa-card::part(header) {
 
 .message-header-date {
   color: #696969;
+  font-size: 0.85rem;
+  padding: 0 4px;
+}
+
+.chatflow-timestamp {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  color: #696969;
+  font-size: 0.85rem;
+  padding: 8px 0 4px;
+}
+
+.timestamp-column-toggle::part(base) {
+  width: 32px;
+  height: 32px;
+  color: #454545;
+}
+
+.timestamp-column-toggle[aria-pressed="true"]::part(base) {
+  background: #efefef;
+}
+
+.chatflow-message-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.chatflow-message-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.chatflow-message-row.show-time-column {
+  grid-template-columns: minmax(0, 1fr) 96px;
+}
+
+.chatflow-message-lane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chatflow-message-lane .message-wrapper {
+  align-self: flex-start;
+}
+
+.chatflow-message-lane .message-wrapper.own-message {
+  align-self: flex-end;
+}
+
+.chatflow-message-time {
+  color: #696969;
+  font-size: 0.8rem;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .chatflow-wrapper {

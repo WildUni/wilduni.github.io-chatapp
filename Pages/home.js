@@ -36,6 +36,7 @@ function setup() {
   const activeNavigationTab = ref("chats");
   const branchName = ref("");
   const branchParent = ref(null);
+  const showTimestampColumn = ref(false);
 
   const branchParentName = computed(() => {
     return branchParent.value?.name || activeChatName.value || "No chat selected";
@@ -167,6 +168,10 @@ function setup() {
     }
   }
 
+  function toggleTimestampColumn() {
+    showTimestampColumn.value = !showTimestampColumn.value;
+  }
+
   /**
    * Combined watch: Handle route changes and update chat info from list
    * - Update active chat ID when route changes (page refresh support)
@@ -238,7 +243,9 @@ function setup() {
     newChatName,
     leaveActiveChat,
     isLeaving,
-    leaveSuccess
+    leaveSuccess,
+    showTimestampColumn,
+    toggleTimestampColumn
   }
 }
 

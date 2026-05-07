@@ -23,6 +23,40 @@ function setup() {
       : handle;
   }
 
+  function isToday(date) {
+    const today = new Date();
+
+    return date.getFullYear() === today.getFullYear()
+      && date.getMonth() === today.getMonth()
+      && date.getDate() === today.getDate();
+  }
+
+  function formatMessageTimestamp(published) {
+    const date = new Date(published);
+
+    if (isToday(date)) {
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  function formatMessageTime(published) {
+    return new Date(published).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
   /**
    * Get message channel for current active chat
    */
@@ -215,6 +249,12 @@ function setup() {
       return Math.abs(secondMessage.value.published - firstMessage.value.published) < MESSAGE_CHUNK_GAP_MS;
     }
 
+    function isSameTimeChunk(firstMessage, secondMessage) {
+      if (!firstMessage || !secondMessage) return false;
+
+      return Math.abs(secondMessage.value.published - firstMessage.value.published) < MESSAGE_CHUNK_GAP_MS;
+    }
+
     return orderedMessages.map((msg, index) => {
       const previousMessage = orderedMessages[index - 1];
       const nextMessage = orderedMessages[index + 1];
@@ -224,6 +264,7 @@ function setup() {
         ...msg,
         isFirstInChunk: !isSameChunk(previousMessage, msg),
         isLastInChunk: !isSameChunk(msg, nextMessage),
+        isFirstInTimeChunk: !isSameTimeChunk(previousMessage, msg),
         profile: resolvedProfileMap.value[user] ?? {
           name: handleCache.value.get(user) ?? user,
           avatarUrl: null
@@ -294,12 +335,14 @@ function setup() {
     messagesWithProfiles,
     activeChatId,
     session,
-    messagesEnd
+    messagesEnd,
+    formatMessageTimestamp,
+    formatMessageTime
   };
 }
 
 export default async () => ({
-  props: ["chatId"],
+  props: ["chatId", "showTimestampColumn"],
   setup,
   components: {
     Message: await loadMessage(),
