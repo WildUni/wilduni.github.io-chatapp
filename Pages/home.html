@@ -40,15 +40,17 @@
             </wa-copy-button>
         </div>
         <h1 v-else>Welcome to Chatree!</h1>
-        <wa-button v-if="activeChatId"
-            @click="leaveActiveChat(activeChatId)" 
-            :variant="leaveSuccess ? 'brand' : 'danger'"
-            slot="main-header-actions" 
-            :disabled.prop="isLeaving">
-            <wa-spinner v-if="isLeaving"></wa-spinner>
-            <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
-            {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
-        </wa-button>
+        <div v-if="activeChatId" slot="main-header-actions" class="main-header-actions">
+            <ChatMembers>hello</ChatMembers>
+            <wa-button
+                @click="leaveActiveChat(activeChatId)" 
+                :variant="leaveSuccess ? 'brand' : 'danger'"
+                :disabled.prop="isLeaving">
+                <wa-spinner v-if="isLeaving"></wa-spinner>
+                <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
+                {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+            </wa-button>
+        </div>
     </div>
 
     <div slot="main-footer">

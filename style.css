@@ -267,6 +267,72 @@ wa-card::part(header) {
   align-items: flex-end;
 }
 
+.main-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-members-button::part(base) {
+  min-width: 72px;
+}
+
+.chat-members-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-members-summary {
+  color: #696969;
+  font-weight: 600;
+}
+
+.chat-members-list {
+  gap: 12px;
+}
+
+.chat-member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.chat-member-item:hover {
+  background-color: #efefef;
+}
+
+.chat-member-avatar {
+  width: 40px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.chat-member-text {
+  min-width: 0;
+}
+
+.chat-member-name {
+  font-weight: 700;
+}
+
+.chat-member-id {
+  max-width: min(58vw, 520px);
+  color: #696969;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-members-empty {
+  color: #696969;
+}
+
 /* ============================================================
    PAGE LAYOUT - Web Awesome Components
    ============================================================ */

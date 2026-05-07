@@ -4,6 +4,7 @@ import loadChatList from "../Components/chatList.js";
 import loadChatTree from "../Components/chatTree.js";
 import loadChatInput from "../Components/chatInput.js";
 import loadChatFlow from "../Components/chatFlow.js";
+import loadChatMembers from "../Components/chatMembers.js";
 import loadProfile from "../Components/profile.js"
 import loadCreateChatButton from '../Components/createChat.js'
 
@@ -115,6 +116,7 @@ export default async () => ({
     ChatTree: await loadChatTree(),
     ChatInput: await loadChatInput(),
     ChatFlow: await loadChatFlow(),
+    ChatMembers: await loadChatMembers(),
     Profile: await loadProfile(),
     CreateChatButton: await loadCreateChatButton(),
   },

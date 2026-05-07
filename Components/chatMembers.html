@@ -1,0 +1,41 @@
+<wa-button
+    v-if="activeChatId"
+    appearance="outlined"
+    data-drawer="open chat-members-drawer"
+    class="chat-members-button">
+    <wa-icon name="users" slot="start"></wa-icon>
+    {{ members.length }}
+</wa-button>
+
+<wa-drawer label="Chat Members" id="chat-members-drawer" placement="end">
+    <div class="chat-members-wrapper">
+        <div class="chat-members-summary">
+            {{ members.length }} {{ members.length === 1 ? "member" : "members" }}
+        </div>
+
+        <ul v-if="members.length" class="chat-members-list">
+            <li v-for="member in members" :key="member.user" class="chat-member-item">
+                <img
+                    v-if="member.profile.avatarUrl"
+                    :src="member.profile.avatarUrl"
+                    alt="Member avatar"
+                    class="chat-member-avatar"
+                />
+                <wa-avatar v-else label="Member avatar"></wa-avatar>
+
+                <div class="chat-member-text">
+                    <div class="chat-member-name">
+                        {{ member.profile.name }}
+                    </div>
+                    <div class="chat-member-id">
+                        {{ member.user }}
+                    </div>
+                </div>
+            </li>
+        </ul>
+
+        <div v-else class="chat-members-empty">
+            No members found for this chat.
+        </div>
+    </div>
+</wa-drawer>
