@@ -22,7 +22,12 @@
 
 <p v-if="createError" class="branch-create-error">Branch creation failed. Please try again.</p>
 
-<wa-tree v-if="nestedTree.length" class="tree-with-lines">
+<wa-tree
+  v-if="nestedTree.length"
+  class="tree-with-lines"
+  selection="single"
+  @wa-selection-change="syncSelectedBranch"
+>
   <TreeNode
     v-for="node in nestedTree"
     :key="node.id"

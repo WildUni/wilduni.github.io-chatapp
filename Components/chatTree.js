@@ -138,6 +138,14 @@ function setup(props, { emit }) {
       emit("update-active-chat", chatId, chatName, rootId);
     }
 
+    function syncSelectedBranch(event) {
+      const tree = event.currentTarget;
+
+      tree?.querySelectorAll("wa-tree-item").forEach((item) => {
+        item.selected = item.dataset.chatId === activeChatId.value;
+      });
+    }
+
     async function createBranchUnderActiveChat() {
       const name = branchName.value.trim();
 
@@ -170,6 +178,7 @@ function setup(props, { emit }) {
       createSuccess,
       createBranchUnderActiveChat,
       emitUpdateChat,
+      syncSelectedBranch,
       activeChatId
     };
 }
@@ -180,11 +189,13 @@ const TreeNode = {
   emits: ["select-chat"],
   template: `
     <wa-tree-item
-      expanded
       :selected.prop="node.id === activeChatId"
-      @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId)"
+      :data-chat-id="node.id"
     >
-      <span class="tree-node-label">
+      <span
+        class="tree-node-label"
+        @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId)"
+      >
         {{ node.name }}
       </span>
 
