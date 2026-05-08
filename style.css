@@ -253,11 +253,11 @@ ul {
 }
 
 .profile-info-wrapper input {
-  width: 40vw;
+  width: 100%;
 }
 
 .profile-info-wrapper textarea {
-  width: 40vw;
+  width: 100%;
   min-height: 20vh;
   max-height: 20vh;
 }
@@ -338,7 +338,8 @@ ul {
 .profile-wrapper {
   display: flex;
   justify-content: center;
-  gap: min(8vw, 8vh);
+  flex-wrap: wrap;
+  gap: 32px;
   align-items: center;
 }
 
@@ -346,6 +347,9 @@ ul {
   display: flex;
   flex-direction: column;
   gap: min(4vw, 4vh);
+  flex: 1 1 360px;
+  min-width: 0;
+  max-width: 500px;
 }
 
 .profile-text-info {
@@ -1393,10 +1397,13 @@ wa-page.has-chat-detail-sidebar::part(aside) {
 }
 
 wa-drawer::part(dialog) {
+  left: 50%;
+  transform: translateX(-50%);
   width: min(560px, calc(100vw - 32px));
   height: auto;
   max-height: min(78vh, 720px);
-  margin: 10vh auto;
+  margin-block: 10vh;
+  margin-inline: 0;
   border-radius: 12px;
 }
 
