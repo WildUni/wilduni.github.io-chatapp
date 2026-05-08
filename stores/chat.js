@@ -8,6 +8,7 @@ import {
   useGraffitiSession,
   useGraffitiDiscover
 } from "@graffiti-garden/wrapper-vue";
+import { useProfileCacheStore } from "./profileCache.js";
 
 // ============================================================
 // PINIA STORE - Chat State Management
@@ -16,6 +17,7 @@ export const useChatStore = defineStore("chat", () => {
   // Access Graffiti API and user session
   const graffiti = useGraffiti();
   const session = useGraffitiSession();
+  const profileCache = useProfileCacheStore();
 
   // ============================================================
   // STATE - Active Chat Information
@@ -62,6 +64,8 @@ export const useChatStore = defineStore("chat", () => {
 
   // Active chat image display URL
   const activeChatImageUrl = ref(null);
+  const activeChatImageLoading = ref(false);
+  const replyTarget = ref(null);
   let currentChatImageObjectUrl = null;
 
   // ============================================================
@@ -75,10 +79,9 @@ export const useChatStore = defineStore("chat", () => {
    * @returns {boolean} Success status of chat creation
    */
   async function createNewChat(parent = null, root = null) {
-    // Validate chat name is provided
-    if (!newChatName.value) {
-      return false;
-    }
+    const trimmedChatName = newChatName.value.trim();
+
+    if (root && !trimmedChatName) return false;
 
     // Reset status flags
     isCreating.value = true;
@@ -89,7 +92,7 @@ export const useChatStore = defineStore("chat", () => {
     const chatId = crypto.randomUUID();
     const parentChatId = parent ? parent : chatId;
     const rootChatId = root ? root : chatId;
-    console.log(newChatName.value, parentChatId, rootChatId)
+    console.log(trimmedChatName, parentChatId, rootChatId)
 
     try {
       const now = Date.now();
@@ -106,7 +109,7 @@ export const useChatStore = defineStore("chat", () => {
                 action: 'Membership',
                 value: 'Join',
                 chatId: chatId,
-                chatName: newChatName.value,
+                chatName: trimmedChatName,
                 published: now,
               },
               channels: [`user:${session.value.actor}:Membership`],
@@ -120,7 +123,7 @@ export const useChatStore = defineStore("chat", () => {
               value: {
                 action: 'Create',
                 chatId: chatId,
-                chatName: newChatName.value,
+                chatName: trimmedChatName,
                 published: now,
                 parentChatId: parentChatId,
                 rootChatId: rootChatId,
@@ -152,7 +155,7 @@ export const useChatStore = defineStore("chat", () => {
             value: {
               action: 'Create',
               chatId: chatId,
-              name: newChatName.value,
+              name: trimmedChatName,
               published: now,
               parentChatId: parentChatId,
               rootChatId: rootChatId,
@@ -370,7 +373,7 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   // Discover all membership activities from Graffiti
-  const { objects: activities } = useGraffitiDiscover(
+  const { objects: activities, isFirstPoll: isMembershipFirstPoll } = useGraffitiDiscover(
     channels,
     {
       properties: {
@@ -446,17 +449,21 @@ export const useChatStore = defineStore("chat", () => {
       if (!url) {
         cleanupActiveChatImage();
         activeChatImageUrl.value = null;
+        activeChatImageLoading.value = false;
         return;
       }
 
       try {
         cleanupActiveChatImage();
+        activeChatImageLoading.value = true;
         const blob = await graffiti.getMedia(url, session.value);
         currentChatImageObjectUrl = URL.createObjectURL(blob.data);
         activeChatImageUrl.value = currentChatImageObjectUrl;
       } catch (err) {
         console.error("Failed to load chat image:", err);
         activeChatImageUrl.value = null;
+      } finally {
+        activeChatImageLoading.value = false;
       }
     },
     { immediate: true }
@@ -490,13 +497,127 @@ export const useChatStore = defineStore("chat", () => {
     );
   });
 
+  const allMembershipChannels = computed(() => {
+    return session.value
+      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Membership`)
+      : [];
+  });
+
+  const { objects: allMembershipActivities } = useGraffitiDiscover(
+    allMembershipChannels,
+    {
+      properties: {
+        value: {
+          required: ['action', 'value', 'user', 'published'],
+          properties: {
+            action: { const: 'Membership' },
+            value: { type: 'string' },
+            user: { type: 'string' },
+            published: { type: 'number' },
+          }
+        }
+      },
+    },
+    session,
+    true
+  );
+
+  function getMembershipChatId(obj) {
+    const channels = [
+      ...(obj.channels ?? []),
+      ...(obj.object?.channels ?? []),
+      obj.channel,
+    ].filter(Boolean);
+    const membershipChannel = channels.find(channel => /^chat:[^:]+:Membership$/.test(channel));
+
+    return membershipChannel?.split(':')[1] ?? null;
+  }
+
+  const memberActorsByChatId = computed(() => {
+    const latestByChatAndUser = allMembershipActivities.value.reduce((acc, obj) => {
+      const chatId = getMembershipChatId(obj);
+      const { user, published } = obj.value;
+
+      if (!chatId || !user || !published) return acc;
+
+      acc[chatId] ??= {};
+      if (!acc[chatId][user] || acc[chatId][user].value.published < published) {
+        acc[chatId][user] = obj;
+      }
+
+      return acc;
+    }, {});
+
+    return Object.fromEntries(
+      Object.entries(latestByChatAndUser).map(([chatId, latestByUser]) => [
+        chatId,
+        Object.values(latestByUser)
+          .filter(obj => obj.value.value === 'Join')
+          .sort((a, b) => a.value.published - b.value.published)
+          .map(obj => obj.value.user),
+      ])
+    );
+  });
+
+  watch(
+    memberActorsByChatId,
+    (membersByChat) => {
+      const users = new Set(session.value?.actor ? [session.value.actor] : []);
+
+      for (const actors of Object.values(membersByChat)) {
+        for (const actor of actors) users.add(actor);
+      }
+
+      profileCache.ensureUsers([...users]);
+    },
+    { immediate: true }
+  );
+
+  watch(
+    () => session.value?.actor,
+    (actor) => {
+      if (actor) profileCache.ensureUsers([actor]);
+    },
+    { immediate: true }
+  );
+
+  function getProfileName(user) {
+    return profileCache.getProfile(user).name || user;
+  }
+
+  function getAutomaticChatName(chatId) {
+    const memberActors = memberActorsByChatId.value[chatId] ?? [];
+    const ownActor = session.value?.actor;
+
+    if (memberActors.length === 2 && ownActor) {
+      const otherActor = memberActors.find(user => user !== ownActor);
+      if (otherActor) return getProfileName(otherActor);
+    }
+
+    if (memberActors.length > 0) {
+      return memberActors.map(getProfileName).join(', ');
+    }
+
+    return ownActor ? getProfileName(ownActor) : 'Untitled chat';
+  }
+
   const chatList = computed(() => {
-    return [...joinedChatList.value].sort((a, b) => {
+    return joinedChatList.value.map(chat => ({
+      ...chat,
+      value: {
+        ...chat.value,
+        displayChatName: chat.value.chatName || getAutomaticChatName(chat.value.chatId),
+      },
+    })).sort((a, b) => {
       const latestA = latestActivityAtByRootChatId.value[a.value.chatId] ?? a.value.published ?? 0;
       const latestB = latestActivityAtByRootChatId.value[b.value.chatId] ?? b.value.published ?? 0;
 
       return latestB - latestA;
     });
+  });
+
+  const isChatListLoading = computed(() => {
+    return session.value === undefined || isMembershipFirstPoll.value;
   });
 
   const chatActivityChannels = computed(() => {
@@ -539,18 +660,29 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   const chatImageUrls = ref({});
+  const chatImageLoadingByChat = ref({});
   const chatImageObjectUrls = new Map();
+  let chatImageLoadRun = 0;
 
   watch(
     chatImageRawByChat,
     async (imagesByChat) => {
+      const run = ++chatImageLoadRun;
       const nextUrls = {};
+      const nextLoading = {};
       const activeUrls = new Set();
 
       for (const [chatId, image] of Object.entries(imagesByChat)) {
         activeUrls.add(image.url);
 
         if (!chatImageObjectUrls.has(image.url)) {
+          nextLoading[chatId] = true;
+          if (run === chatImageLoadRun) {
+            chatImageLoadingByChat.value = {
+              ...chatImageLoadingByChat.value,
+              [chatId]: true,
+            };
+          }
           try {
             const blob = await graffiti.getMedia(image.url, session.value);
             chatImageObjectUrls.set(image.url, URL.createObjectURL(blob.data));
@@ -561,6 +693,7 @@ export const useChatStore = defineStore("chat", () => {
         }
 
         nextUrls[chatId] = chatImageObjectUrls.get(image.url);
+        nextLoading[chatId] = false;
       }
 
       for (const [url, objectUrl] of chatImageObjectUrls.entries()) {
@@ -570,7 +703,10 @@ export const useChatStore = defineStore("chat", () => {
         }
       }
 
-      chatImageUrls.value = nextUrls;
+      if (run === chatImageLoadRun) {
+        chatImageUrls.value = nextUrls;
+        chatImageLoadingByChat.value = nextLoading;
+      }
     },
     { immediate: true }
   );
@@ -805,6 +941,14 @@ export const useChatStore = defineStore("chat", () => {
     }
 
     return true;
+  }
+
+  function setReplyTarget(message) {
+    replyTarget.value = message;
+  }
+
+  function clearReplyTarget() {
+    replyTarget.value = null;
   }
 
 
@@ -1043,13 +1187,19 @@ export const useChatStore = defineStore("chat", () => {
     activeChatRootId,
     activeChatParentId,
     activeChatImageUrl,
+    activeChatImageLoading,
+    replyTarget,
     chatImageUrls,
+    chatImageLoadingByChat,
 
     // Chat list
     chatList,
+    isChatListLoading,
     hasUnreadByChatId,
     hasUnreadByRootChatId,
     markChatRead,
+    setReplyTarget,
+    clearReplyTarget,
 
     // Create chat
     newChatName,

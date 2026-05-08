@@ -1,7 +1,17 @@
-<div class="message-wrapper" :class="{ 'own-message': isOwnMessage }">
+<div
+    ref="messageWrapper"
+    class="message-wrapper"
+    :class="{ 'own-message': isOwnMessage, 'pending-message': isPending, 'failed-message': pendingStatus === 'failed', 'actions-open': isActionTrayPinned }"
+    @click="toggleActionTray"
+>
     <div class="avatar" :class="{ 'avatar-placeholder': !showAvatar }">
+        <wa-skeleton
+            v-if="showAvatar && avatarIsLoading"
+            effect="sheen"
+            class="message-avatar-skeleton"
+        ></wa-skeleton>
         <wa-avatar
-            v-if="showAvatar"
+            v-else-if="showAvatar"
             label="User avatar"
             :image.prop="avatarUrl || ''"
             class="message-avatar"
@@ -14,9 +24,62 @@
         </div>
 
         <wa-card class="card-header">
+            <div v-if="isPinned" class="message-pin-badge" title="Pinned">
+                <wa-icon name="thumbtack"></wa-icon>
+            </div>
+            <button
+                v-if="replyToContent"
+                type="button"
+                class="message-reply-context"
+                title="Jump to replied message"
+                @click.stop="$emit('open-reply')"
+            >
+                {{ replyToContent }}
+            </button>
             <div class="message-body-content">
                 {{messageContent}}
             </div>
+            <div class="message-hover-actions">
+                <wa-button
+                    appearance="plain"
+                    class="message-action-button"
+                    :class="{ 'is-active': isLiked }"
+                    :title="isLiked ? 'Unlike message' : 'Like message'"
+                    :aria-label="isLiked ? 'Unlike message' : 'Like message'"
+                    :disabled.prop="isPending"
+                    @click.stop="$emit('toggle-like')"
+                >
+                    <wa-icon name="heart"></wa-icon>
+                </wa-button>
+                <wa-button
+                    appearance="plain"
+                    class="message-action-button"
+                    :class="{ 'is-active': isPinned }"
+                    :title="isPinned ? 'Unpin message' : 'Pin message'"
+                    :aria-label="isPinned ? 'Unpin message' : 'Pin message'"
+                    :disabled.prop="isPending"
+                    @click.stop="$emit('toggle-pin')"
+                >
+                    <wa-icon name="thumbtack"></wa-icon>
+                </wa-button>
+                <wa-button
+                    appearance="plain"
+                    class="message-action-button"
+                    title="Reply to message"
+                    aria-label="Reply to message"
+                    :disabled.prop="isPending"
+                    @click.stop="$emit('reply')"
+                >
+                    <wa-icon name="reply"></wa-icon>
+                </wa-button>
+            </div>
         </wa-card>
+        <div v-if="likeCount > 0" class="message-like-badge" title="Message likes">
+            <wa-icon name="heart"></wa-icon>
+            <span>{{ likeCount }}</span>
+        </div>
+        <div v-if="isPending" class="message-send-status">
+            {{ pendingStatus === "failed" ? "Could not send" : "Sending..." }}
+        </div>
     </div>
 </div>

@@ -5,12 +5,14 @@ import {
 } from "@graffiti-garden/wrapper-vue";
 import { storeToRefs } from 'pinia';
 import { useChatStore } from "../stores/chat.js";
+import { usePendingMessagesStore } from "../stores/pendingMessages.js";
 
 function setup() {
   const graffiti = useGraffiti();
   const session = useGraffitiSession();
   const chatStore = useChatStore();
-  const { activeChatId } = storeToRefs(chatStore);
+  const pendingMessagesStore = usePendingMessagesStore();
+  const { activeChatId, replyTarget } = storeToRefs(chatStore);
 
   const myMessage = ref('');
   const isSending = ref(false);
@@ -36,8 +38,25 @@ function setup() {
       return;
     }
 
+    const chatId = activeChatId.value;
+    const published = Date.now();
+    const clientId = crypto.randomUUID();
+    const reply = replyTarget.value;
+
+    myMessage.value = "";
+    chatStore.clearReplyTarget();
     isSending.value = true;
     sendError.value = "";
+    pendingMessagesStore.addPendingMessage({
+      clientId,
+      chatId,
+      content: trimmedMessage,
+      published,
+      user: session.value?.actor,
+      replyTo: reply?.id,
+      replyToContent: reply?.content,
+      replyToUser: reply?.user,
+    });
 
     try {
       // Post message to Graffiti
@@ -45,20 +64,22 @@ function setup() {
         {
           value: {
             action: "Message",
-            chatId: activeChatId.value,
+            chatId,
+            clientId,
             content: trimmedMessage,
-            published: Date.now(),
-            user: session.value?.actor
+            published,
+            user: session.value?.actor,
+            replyTo: reply?.id,
+            replyToContent: reply?.content,
+            replyToUser: reply?.user,
           },
-          channels: [`chat:${activeChatId.value}:Messages`]
+          channels: [`chat:${chatId}:Messages`]
         },
         session.value,
       );
-
-      // Clear input on success
-      myMessage.value = "";
     } catch (err) {
       sendError.value = "Message failed to send. Please try again.";
+      pendingMessagesStore.failPendingMessage(clientId);
       console.error("Failed to send message:", err);
     } finally {
       isSending.value = false;
@@ -70,6 +91,8 @@ function setup() {
     sendMessage,
     isSending,
     sendError,
+    replyTarget,
+    clearReplyTarget: chatStore.clearReplyTarget,
   };
 }
 

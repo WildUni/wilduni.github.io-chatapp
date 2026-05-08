@@ -14,6 +14,7 @@ import loadCreateChatButton from '../Components/createChat.js'
 
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
+import { useProfileCacheStore } from "../stores/profileCache.js";
 
 import { delay } from "../index.js";
 
@@ -23,6 +24,7 @@ function setup() {
   const router = useRouter()
   const session = useGraffitiSession();
   const chatStore = useChatStore();
+  const profileCache = useProfileCacheStore();
   const {activeChatId, 
     activeChatName, 
     newChatName, 
@@ -30,6 +32,7 @@ function setup() {
     activeChatRootId,
     activeChatParentId,
     activeChatImageUrl,
+    activeChatImageLoading,
     isCreating,
     createError,
     createSuccess,
@@ -42,6 +45,14 @@ function setup() {
   const branchName = ref("");
   const branchParent = ref(null);
   const showTimestampColumn = ref(false);
+  const showChatInfo = ref(false);
+  const showPinnedMessages = ref(false);
+  const isCustomizeChatOpen = ref(false);
+  const isMembersOpen = ref(false);
+  const showRenameDialog = ref(false);
+  const showBranchRenameDialog = ref(false);
+  const branchBeingRenamed = ref(null);
+  const editedBranchName = ref("");
 
   const branchParentName = computed(() => {
     return branchParent.value?.name || activeChatName.value || "No chat selected";
@@ -72,6 +83,156 @@ function setup() {
     },
     session
   );
+
+  const activeMessageChannels = computed(() =>
+    session.value && activeChatId.value
+      ? [`chat:${activeChatId.value}:Messages`]
+      : []
+  );
+
+  const { objects: activeMessages } = useGraffitiDiscover(
+    activeMessageChannels,
+    {
+      properties: {
+        value: {
+          required: ["action", "content", "published", "user"],
+          properties: {
+            action: { const: "Message" },
+            chatId: { type: "string" },
+            clientId: { type: "string" },
+            content: { type: "string" },
+            published: { type: "number" },
+            user: { type: "string" },
+          },
+        },
+      },
+    },
+    session
+  );
+
+  const activeMessageInteractionChannels = computed(() =>
+    session.value && activeChatId.value
+      ? [`chat:${activeChatId.value}:MessageInteractions`]
+      : []
+  );
+
+  const { objects: activeMessageInteractions } = useGraffitiDiscover(
+    activeMessageInteractionChannels,
+    {
+      properties: {
+        value: {
+          required: ["action", "messageId", "published", "user"],
+          properties: {
+            action: { type: "string" },
+            chatId: { type: "string" },
+            messageId: { type: "string" },
+            value: { type: "string" },
+            published: { type: "number" },
+            user: { type: "string" },
+          },
+        },
+      },
+    },
+    session
+  );
+
+  function getMessageId(message) {
+    return message.url || message.value.clientId || `${message.value.user}:${message.value.published}`;
+  }
+
+  const pinnedMessageIds = computed(() => {
+    const latestPinByMessage = {};
+
+    for (const obj of activeMessageInteractions.value) {
+      const { action, messageId, published } = obj.value;
+      if (action !== "MessagePin" || !messageId || !published) continue;
+
+      const existing = latestPinByMessage[messageId];
+      if (!existing || existing.value.published < published) {
+        latestPinByMessage[messageId] = obj;
+      }
+    }
+
+    return new Set(
+      Object.entries(latestPinByMessage)
+        .filter(([, obj]) => obj.value.value === "Pin")
+        .map(([messageId]) => messageId)
+    );
+  });
+
+  const pinnedMessages = computed(() =>
+    activeMessages.value
+      .map(message => ({
+        ...message,
+        messageId: getMessageId(message),
+        profile: profileCache.getProfile(message.value.user),
+      }))
+      .filter(message => pinnedMessageIds.value.has(message.messageId))
+      .sort((a, b) => b.value.published - a.value.published)
+  );
+
+  watch(
+    () => pinnedMessages.value.map(message => message.value.user),
+    (users) => profileCache.ensureUsers(users),
+    { immediate: true }
+  );
+
+  const membershipChannels = computed(() => {
+    const membershipChatId = activeChatRootId.value ?? activeChatId.value;
+    return session.value && membershipChatId
+      ? [`chat:${membershipChatId}:Membership`]
+      : [];
+  });
+
+  const { objects: membershipActivities } = useGraffitiDiscover(
+    membershipChannels,
+    {
+      properties: {
+        value: {
+          required: ["action", "value", "user", "published"],
+          properties: {
+            action: { const: "Membership" },
+            value: { type: "string" },
+            user: { type: "string" },
+            published: { type: "number" },
+          },
+        },
+      },
+    },
+    session,
+    true,
+  );
+
+  const infoMemberActors = computed(() => {
+    const latestByUser = membershipActivities.value.reduce((acc, obj) => {
+      const { user, published } = obj.value;
+      if (!user || !published) return acc;
+
+      if (!acc[user] || acc[user].value.published < published) {
+        acc[user] = obj;
+      }
+
+      return acc;
+    }, {});
+
+    return Object.values(latestByUser)
+      .filter(obj => obj.value.value === "Join")
+      .sort((a, b) => a.value.published - b.value.published)
+      .map(obj => obj.value.user);
+  });
+
+  watch(infoMemberActors, (users) => {
+    profileCache.ensureUsers(users);
+  }, { immediate: true });
+
+  const infoMembers = computed(() =>
+    infoMemberActors.value.map(user => ({
+      user,
+      profile: profileCache.getProfile(user),
+    })),
+  );
+
+  const previewMembers = computed(() => infoMembers.value.slice(0, 4));
 
   const branchMap = computed(() => {
     return branchActivities.value.reduce((acc, obj) => {
@@ -107,6 +268,14 @@ function setup() {
     }, {});
   });
 
+  const activeChatRootName = computed(() => {
+    const rootChat = chatListMap.value[activeChatRootId.value];
+    return rootChat?.displayChatName
+      ?? rootChat?.chatName
+      ?? (activeChatId.value === activeChatRootId.value ? activeChatName.value : null)
+      ?? "Untitled chat";
+  });
+
   function getBreadcrumbNode(chatId) {
     if (!chatId) return null;
 
@@ -118,7 +287,7 @@ function setup() {
 
     return {
       id: chatId,
-      name: branch?.name || chat?.chatName || (chatId === activeChatId.value ? activeChatName.value : null) || "Untitled chat",
+      name: branch?.name || chat?.displayChatName || chat?.chatName || (chatId === activeChatId.value ? activeChatName.value : null) || "Untitled chat",
       rootChatId: branch?.rootChatId || chat?.rootChatId || activeChatRootId.value || chatId,
       parentChatId: branch?.parentChatId || chat?.parentChatId || chatId,
     };
@@ -187,6 +356,11 @@ function setup() {
       if (!chatId && activeNavigationTab.value === "branches") {
         activeNavigationTab.value = "chats";
       }
+
+      if (!chatId) {
+        showChatInfo.value = false;
+        showPinnedMessages.value = false;
+      }
     }
   );
 
@@ -230,8 +404,40 @@ function setup() {
     );
 
     if (success) {
-      const drawer = document.querySelector("#chat-settings-drawer");
-      if (drawer) drawer.open = false;
+      editedActiveChatName.value = activeChatName.value ?? editedActiveChatName.value;
+      showRenameDialog.value = false;
+    }
+  }
+
+  function openRenameDialog() {
+    editedActiveChatName.value = activeChatName.value ?? "";
+    showRenameDialog.value = true;
+  }
+
+  function openBranchRenameDialog(branch) {
+    if (!branch?.id || branch.id === branch.rootChatId) return;
+
+    branchBeingRenamed.value = branch;
+    editedBranchName.value = branch.name ?? "";
+    showBranchRenameDialog.value = true;
+  }
+
+  async function renameSelectedBranch() {
+    const branch = branchBeingRenamed.value;
+
+    if (!branch?.id || !editedBranchName.value.trim()) return;
+
+    const success = await chatStore.renameChat(
+      branch.id,
+      editedBranchName.value,
+      branch.rootChatId,
+      branch.parentChatId
+    );
+
+    if (success) {
+      showBranchRenameDialog.value = false;
+      branchBeingRenamed.value = null;
+      editedBranchName.value = "";
     }
   }
 
@@ -292,7 +498,7 @@ function setup() {
 
       setActiveChat(
         branch.rootChatId,
-        rootChat?.value.chatName ?? "Untitled chat",
+        rootChat?.value.displayChatName ?? rootChat?.value.chatName ?? "Untitled chat",
         branch.rootChatId,
         branch.rootChatId
       );
@@ -301,6 +507,16 @@ function setup() {
 
   function toggleTimestampColumn() {
     showTimestampColumn.value = !showTimestampColumn.value;
+  }
+
+  function toggleChatInfo() {
+    if (!showChatInfo.value) showPinnedMessages.value = false;
+    showChatInfo.value = !showChatInfo.value;
+  }
+
+  function togglePinnedMessages() {
+    if (!showPinnedMessages.value) showChatInfo.value = false;
+    showPinnedMessages.value = !showPinnedMessages.value;
   }
 
   function navigateBreadcrumb(item) {
@@ -340,7 +556,7 @@ function setup() {
         );
 
         if (activeChat) {
-          activeChatName.value = activeChat.value.chatName;
+          activeChatName.value = activeChat.value.displayChatName;
           activeChatRootId.value = activeChat.value.rootChatId ?? activeChat.value.chatId;
           activeChatParentId.value = activeChat.value.parentChatId ?? activeChat.value.chatId;
           return;
@@ -361,7 +577,11 @@ function setup() {
     activeChatName,
     activeChatRootId,
     activeChatParentId,
+    activeChatRootName,
     activeChatImageUrl,
+    activeChatImageLoading,
+    infoMembers,
+    previewMembers,
     activeNavigationTab,
     branchName,
     branchParentName,
@@ -372,6 +592,10 @@ function setup() {
     openBranchDrawer,
     createBranchUnderActiveChat,
     deleteBranch,
+    openBranchRenameDialog,
+    renameSelectedBranch,
+    editedBranchName,
+    showBranchRenameDialog,
     editedActiveChatName,
     isRenaming,
     renameError,
@@ -384,6 +608,15 @@ function setup() {
     leaveSuccess,
     showTimestampColumn,
     toggleTimestampColumn,
+    showChatInfo,
+    toggleChatInfo,
+    showPinnedMessages,
+    togglePinnedMessages,
+    pinnedMessages,
+    isCustomizeChatOpen,
+    isMembersOpen,
+    showRenameDialog,
+    openRenameDialog,
     navigateBreadcrumb
   }
 }

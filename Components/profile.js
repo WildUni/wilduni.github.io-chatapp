@@ -6,7 +6,7 @@ import { storeToRefs } from "pinia"
 
 function setup() {
   const userStore = useUserStore();
-  const {profileName, profileImageUrl, profileBio} = storeToRefs(userStore);
+  const {profileName, profileImageUrl, profileImageLoading, profileBio} = storeToRefs(userStore);
 
   const editedName = ref("");
   const editedBio = ref("");
@@ -61,6 +61,7 @@ function setup() {
   return{
     profileName,
     profileImageUrl,
+    profileImageLoading,
     profileBio,
     handleFileUpload: userStore.handleFileUpload,
     saveChanges,

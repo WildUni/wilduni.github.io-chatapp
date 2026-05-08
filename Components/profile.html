@@ -2,7 +2,13 @@
 <wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
 
     <div slot="start">
+        <wa-skeleton
+            v-if="profileImageLoading"
+            effect="sheen"
+            class="profile-pill-avatar-skeleton"
+        ></wa-skeleton>
         <wa-avatar
+            v-else
             label="User avatar"
             :image.prop="profileImageUrl || ''"
             class="profile-pill-avatar"
@@ -22,7 +28,13 @@
 <wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
     <div class="profile-wrapper" >
         <label class="profile-image-upload" title="Upload a Profile Picture">
+            <wa-skeleton
+                v-if="profileImageLoading"
+                effect="sheen"
+                class="profile-image-skeleton"
+            ></wa-skeleton>
             <wa-avatar
+                v-else
                 label="User avatar"
                 :image.prop="profileImageUrl || ''"
                 class="profile-image"

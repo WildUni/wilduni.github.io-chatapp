@@ -64,12 +64,6 @@ function setup() {
     latestChatActivity.value != null && latestChatActivity.value.value.action !== "Delete"
   );
 
-  const chatName = computed(() =>
-    latestChatActivity.value?.value.chatName ||
-    latestChatActivity.value?.value.name ||
-    "Untitled chat"
-  );
-
   const chatImageRawUrl = computed(() =>
     chatActivities.value.reduce((latest, obj) => {
       if (
@@ -181,11 +175,11 @@ function setup() {
   }
 
   watch(memberActors, async (users) => {
-    await Promise.all(users.slice(0, 6).map(resolveHandle));
+    await Promise.all(users.map(resolveHandle));
   }, { immediate: true });
 
   const { objects: profileObjects } = useGraffitiDiscover(
-    () => memberActors.value.slice(0, 6).map(user => `user:${user}:Activities`),
+    () => memberActors.value.map(user => `user:${user}:Activities`),
     {
       properties: {
         value: {
@@ -205,6 +199,14 @@ function setup() {
 
   const profileMap = computed(() => {
     const profiles = {};
+
+    for (const user of memberActors.value) {
+      profiles[user] = {
+        name: handleCache.value.get(user) ?? user,
+        avatarUrl: null,
+        _ts: {},
+      };
+    }
 
     for (const obj of profileObjects.value) {
       const { user, action, name, url, published } = obj.value;
@@ -231,6 +233,29 @@ function setup() {
 
     return profiles;
   });
+
+  function getProfileName(user) {
+    return profileMap.value[user]?.name || handleCache.value.get(user) || user;
+  }
+
+  const automaticChatName = computed(() => {
+    const actors = memberActors.value;
+    const ownActor = session.value?.actor;
+
+    if (actors.length === 2 && ownActor) {
+      const otherActor = actors.find(user => user !== ownActor);
+      if (otherActor) return getProfileName(otherActor);
+    }
+
+    if (actors.length > 0) return actors.map(getProfileName).join(", ");
+    return ownActor ? (handleCache.value.get(ownActor) ?? ownActor) : "Untitled chat";
+  });
+
+  const chatName = computed(() =>
+    latestChatActivity.value?.value.chatName ||
+    latestChatActivity.value?.value.name ||
+    automaticChatName.value
+  );
 
   const avatarCache = ref(new Map());
 

@@ -13,7 +13,13 @@ function setup(props, { emit }) {
     const graffiti = useGraffiti();
     const session = useGraffitiSession();
     const chatStore = useChatStore()
-    const {chatList, chatImageUrls, hasUnreadByRootChatId} = storeToRefs(chatStore)
+    const {
+      chatList,
+      chatImageUrls,
+      chatImageLoadingByChat,
+      hasUnreadByRootChatId,
+      isChatListLoading
+    } = storeToRefs(chatStore)
 
     
     function emitUpdateChat(chatId, chatName, rootId, parentId) {
@@ -24,7 +30,9 @@ function setup(props, { emit }) {
       emitUpdateChat, 
       chatList,
       chatImageUrls,
+      chatImageLoadingByChat,
       hasUnreadByRootChatId,
+      isChatListLoading,
     };
 }
 

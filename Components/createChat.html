@@ -18,10 +18,10 @@
 <wa-drawer label="Create New Chat" id="createChatMenu" placement="top">
     <div class="panel-wrapper">
         <h4>Create your own chat!</h4>
-        <p>Please provide a name for your new chat. You will be able to change this later.</p>
+        <p>Add a chat name, or leave it blank to use member names automatically.</p>
         <input
             v-model="newChatName"
-            placeholder="Name of new chat! (30 characters max.)"
+            placeholder="Chat name (optional)"
             maxlength="30"
             type="text"
             @keydown.enter="handleCreateChat"/>
@@ -32,7 +32,7 @@
         slot="footer"
         :variant="createSuccess ? 'success' : 'brand'"
         @click="handleCreateChat"
-        :disabled.prop="isCreating||!newChatName.length">
+        :disabled.prop="isCreating">
         <wa-icon name="check" v-if="createSuccess"></wa-icon>
         <wa-spinner v-if="isCreating"></wa-spinner>
         {{ isCreating ? "Creating..." : createSuccess ? "Chat Created" : "Create" }}

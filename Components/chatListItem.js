@@ -12,7 +12,7 @@ function setup(props) {
 }
 
 export default async () => ({
-  props: ["chatId", 'chatName', 'chatImageUrl', 'hasUnread'],
+  props: ["chatId", 'chatName', 'chatImageUrl', 'isChatImageLoading', 'hasUnread'],
   setup,
   template: await fetch(new URL("./chatListItem.html", import.meta.url)).then((r) =>
     r.text(),

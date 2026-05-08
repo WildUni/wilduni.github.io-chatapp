@@ -113,7 +113,7 @@ function setup(props, { emit }) {
         chat => chat.value.chatId === activeChatRootId.value
       );
 
-      return rootChat?.value.chatName ?? null;
+      return rootChat?.value.displayChatName ?? rootChat?.value.chatName ?? null;
     });
 
     function constructTree(rootChatId, visited = new Set()) {
@@ -156,6 +156,10 @@ function setup(props, { emit }) {
       emit("delete-branch", branch);
     }
 
+    function emitRenameBranch(branch) {
+      emit("rename-branch", branch);
+    }
+
     function syncSelectedBranch(event) {
       const tree = event.currentTarget;
 
@@ -171,6 +175,7 @@ function setup(props, { emit }) {
       emitUpdateChat,
       emitCreateBranch,
       emitDeleteBranch,
+      emitRenameBranch,
       syncSelectedBranch,
       activeChatId
     };
@@ -179,7 +184,7 @@ function setup(props, { emit }) {
 const TreeNode = {
   name: "TreeNode",
   props: ["node", "activeChatId"],
-  emits: ["select-chat", "create-branch", "delete-branch"],
+  emits: ["select-chat", "create-branch", "delete-branch", "rename-branch"],
   methods: {
     closeOtherDropdowns(event) {
       const currentDropdown = event.currentTarget.closest("wa-dropdown");
@@ -195,6 +200,10 @@ const TreeNode = {
 
       if (action === "create-branch") {
         this.$emit("create-branch", this.node);
+      }
+
+      if (action === "rename-branch" && this.node.id !== this.node.rootChatId) {
+        this.$emit("rename-branch", this.node);
       }
 
       if (action === "delete-branch" && this.node.id !== this.node.rootChatId) {
@@ -242,6 +251,13 @@ const TreeNode = {
             Create New Branch
           </wa-dropdown-item>
           <wa-dropdown-item
+            value="rename-branch"
+            :disabled.prop="node.id === node.rootChatId"
+          >
+            <wa-icon name="pen-to-square" slot="start"></wa-icon>
+            Rename Branch
+          </wa-dropdown-item>
+          <wa-dropdown-item
             value="delete-branch"
             :disabled.prop="node.id === node.rootChatId"
             class="danger-dropdown-item"
@@ -259,6 +275,7 @@ const TreeNode = {
         :active-chat-id="activeChatId"
         @select-chat="(...args) => $emit('select-chat', ...args)"
         @create-branch="branch => $emit('create-branch', branch)"
+        @rename-branch="branch => $emit('rename-branch', branch)"
         @delete-branch="branch => $emit('delete-branch', branch)"
       />
     </wa-tree-item>
@@ -277,7 +294,7 @@ TreeNode.components.TreeNode = TreeNode;
 
 export default async () => ({
   setup,
-  emits: ["update-active-chat", "create-branch", "delete-branch"],
+  emits: ["update-active-chat", "create-branch", "delete-branch", "rename-branch"],
   components: {
     TreeNode,
   },

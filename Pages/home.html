@@ -1,5 +1,5 @@
 
-<wa-page>
+<wa-page :class="{ 'has-chat-detail-sidebar': activeChatId && (showChatInfo || showPinnedMessages) }">
     <wa-tab-group
         slot="navigation"
         withoutScrollControls
@@ -23,7 +23,8 @@
             <ChatTree
                 @update-active-chat="setActiveChat"
                 @create-branch="openBranchDrawer"
-                @delete-branch="deleteBranch">
+                @delete-branch="deleteBranch"
+                @rename-branch="openBranchRenameDialog">
             </ChatTree>
         </wa-tab-panel>
 
@@ -89,8 +90,14 @@
                         'chat-breadcrumb-ellipsis': item.isEllipsis
                     }"
                 >
+                    <wa-skeleton
+                        v-if="item.showAvatar && activeChatImageLoading"
+                        slot="start"
+                        effect="sheen"
+                        class="chat-header-avatar-skeleton"
+                    ></wa-skeleton>
                     <wa-avatar
-                        v-if="item.showAvatar"
+                        v-else-if="item.showAvatar"
                         slot="start"
                         label="Chat image"
                         :image.prop="activeChatImageUrl || ''"
@@ -111,24 +118,125 @@
             >
                 <wa-icon name="clock"></wa-icon>
             </wa-button>
-            <ChatMembers>hello</ChatMembers>
             <wa-button
-                appearance="outlined"
-                data-drawer="open chat-settings-drawer"
-                class="chat-settings-button"
+                appearance="plain"
+                class="pinned-messages-button"
+                :aria-pressed="showPinnedMessages"
+                title="Pinned messages"
+                aria-label="Pinned messages"
+                @click="togglePinnedMessages"
             >
-                <wa-icon name="gear" slot="start"></wa-icon>
-                Settings
+                <wa-icon name="thumbtack"></wa-icon>
             </wa-button>
+            <wa-button
+                appearance="plain"
+                class="chat-info-button"
+                :aria-pressed="showChatInfo"
+                title="Chat info"
+                aria-label="Chat info"
+                @click="toggleChatInfo"
+            >
+                <wa-icon name="circle-info"></wa-icon>
+            </wa-button>
+        </div>
+    </div>
 
-            <wa-drawer label="Chat Settings" id="chat-settings-drawer" placement="end" class="chat-side-panel">
-                <div class="chat-settings-wrapper">
-                    <label class="chat-image-upload" title="Upload a chat image">
-                        <wa-avatar
-                            label="Chat image"
-                            :image.prop="activeChatImageUrl || ''"
-                            class="chat-settings-avatar"
-                        ></wa-avatar>
+    <div slot="main-footer">
+        <ChatInput></ChatInput>
+    </div>
+
+    <main>
+        <section v-if="activeChatId" class="chat-messages-pane">
+            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
+        </section>
+        <section v-else class="chat-messages-pane">
+            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
+        </section>
+    </main>
+
+    <aside
+        v-if="activeChatId && showChatInfo"
+        slot="aside"
+        class="chat-detail-sidebar"
+    >
+        <div class="chat-detail-sidebar-header">
+            <h2>Chat info</h2>
+            <wa-button
+                appearance="plain"
+                class="chat-column-close"
+                title="Close panel"
+                aria-label="Close panel"
+                @click="showChatInfo = false"
+            >
+                <wa-icon name="xmark"></wa-icon>
+            </wa-button>
+        </div>
+
+        <div class="chat-info-column">
+            <div class="chat-info-hero">
+                <wa-skeleton
+                    v-if="activeChatImageLoading"
+                    effect="sheen"
+                    class="chat-info-hero-skeleton"
+                ></wa-skeleton>
+
+                <wa-avatar
+                    v-else-if="activeChatImageUrl"
+                    label="Chat image"
+                    :image.prop="activeChatImageUrl"
+                    class="chat-info-hero-avatar"
+                ></wa-avatar>
+
+                <div
+                    v-else-if="previewMembers.length"
+                    class="chat-info-member-stack"
+                    aria-label="Chat members"
+                >
+                    <wa-avatar
+                        v-for="member in previewMembers"
+                        :key="member.user"
+                        label="Member avatar"
+                        :image.prop="member.profile.avatarUrl || ''"
+                        class="chat-info-member-avatar"
+                    ></wa-avatar>
+                </div>
+
+                <wa-avatar
+                    v-else
+                    label="Chat image"
+                    class="chat-info-hero-avatar"
+                ></wa-avatar>
+
+                <div class="chat-info-hero-name">{{ activeChatRootName }}</div>
+                <div class="chat-info-hero-count">
+                    {{ infoMembers.length }} {{ infoMembers.length === 1 ? "member" : "members" }}
+                </div>
+            </div>
+
+            <section class="chat-info-section">
+                <button
+                    type="button"
+                    class="chat-info-section-trigger"
+                    :aria-expanded="isCustomizeChatOpen"
+                    @click="isCustomizeChatOpen = !isCustomizeChatOpen"
+                >
+                    <span>
+                        <wa-icon name="gear"></wa-icon>
+                        Customize chat
+                    </span>
+                    <wa-icon name="chevron-left" class="chat-info-section-chevron"></wa-icon>
+                </button>
+
+                <div
+                    v-if="isCustomizeChatOpen"
+                    class="chat-info-section-body chat-settings-wrapper"
+                >
+                    <label class="chat-info-action-row">
+                        <span>
+                            <wa-icon name="image"></wa-icon>
+                            Change photo
+                        </span>
+                        <wa-icon name="chevron-right"></wa-icon>
                         <input
                             type="file"
                             accept="image/*"
@@ -137,57 +245,200 @@
                         />
                     </label>
 
-                    <label class="settings-field">
-                        Name
-                        <input
-                            v-model="editedActiveChatName"
-                            maxlength="30"
-                            type="text"
-                        />
-                    </label>
-
-                    <wa-button
-                        variant="brand"
+                    <button
                         type="button"
-                        @click="renameActiveChat"
-                        :disabled.prop="isRenaming || !editedActiveChatName.trim()"
+                        class="chat-info-action-row"
+                        @click="openRenameDialog"
                     >
-                        <wa-spinner v-if="isRenaming"></wa-spinner>
-                        Rename
-                    </wa-button>
+                        <span>
+                            <wa-icon name="pen-to-square"></wa-icon>
+                            Rename chat
+                        </span>
+                        <wa-icon name="chevron-right"></wa-icon>
+                    </button>
 
                     <p v-if="renameError" class="settings-error">Update failed.</p>
                 </div>
+            </section>
+
+            <section class="chat-info-section">
+                <button
+                    type="button"
+                    class="chat-info-section-trigger"
+                    :aria-expanded="isMembersOpen"
+                    @click="isMembersOpen = !isMembersOpen"
+                >
+                    <span>
+                        <wa-icon name="users"></wa-icon>
+                        Members
+                    </span>
+                    <wa-icon name="chevron-left" class="chat-info-section-chevron"></wa-icon>
+                </button>
+
+                <div v-if="isMembersOpen" class="chat-info-section-body">
+                    <ChatMembers></ChatMembers>
+                </div>
+            </section>
+        </div>
+
+        <div class="chat-info-leave">
+            <wa-button
+                @click="leaveActiveChat(activeChatRootId)"
+                :variant="leaveSuccess ? 'brand' : 'danger'"
+                :disabled.prop="isLeaving"
+            >
+                <wa-spinner v-if="isLeaving"></wa-spinner>
+                <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
+                {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+            </wa-button>
+        </div>
+    </aside>
+
+    <aside
+        v-if="activeChatId && showPinnedMessages"
+        slot="aside"
+        class="chat-detail-sidebar pinned-messages-sidebar"
+    >
+        <div class="chat-detail-sidebar-header">
+            <h2>Pinned messages</h2>
+            <wa-button
+                appearance="plain"
+                class="chat-column-close"
+                title="Close panel"
+                aria-label="Close panel"
+                @click="showPinnedMessages = false"
+            >
+                <wa-icon name="xmark"></wa-icon>
+            </wa-button>
+        </div>
+
+        <ul v-if="pinnedMessages.length" class="pinned-messages-list">
+            <li
+                v-for="message in pinnedMessages"
+                :key="message.messageId"
+                class="pinned-message-item"
+            >
+                <div class="pinned-message-meta">
+                    <wa-avatar
+                        label="Pinned message author"
+                        :image.prop="message.profile.avatarUrl || ''"
+                        class="pinned-message-avatar"
+                    ></wa-avatar>
+                    <span>{{ message.profile.name || message.value.user }}</span>
+                </div>
+                <p>{{ message.value.content }}</p>
+            </li>
+        </ul>
+
+        <div v-else class="pinned-messages-empty">
+            No pinned messages yet.
+        </div>
+    </aside>
+
+    <div
+        v-if="showRenameDialog"
+        class="chat-rename-modal-backdrop"
+        @click.self="showRenameDialog = false"
+    >
+        <form class="chat-rename-modal" @submit.prevent="renameActiveChat">
+            <div class="chat-rename-modal-header">
+                <h2>Rename chat</h2>
+                <wa-button
+                    appearance="plain"
+                    class="chat-column-close"
+                    type="button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="showRenameDialog = false"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </wa-button>
+            </div>
+
+            <label class="settings-field">
+                New name
+                <input
+                    v-model="editedActiveChatName"
+                    maxlength="30"
+                    type="text"
+                    autofocus
+                />
+            </label>
+
+            <p v-if="renameError" class="settings-error">Update failed.</p>
+
+            <div class="chat-rename-modal-actions">
+                <wa-button
+                    appearance="plain"
+                    type="button"
+                    @click="showRenameDialog = false"
+                >
+                    Cancel
+                </wa-button>
 
                 <wa-button
-                    slot="footer"
-                    @click="leaveActiveChat(activeChatRootId)" 
-                    :variant="leaveSuccess ? 'brand' : 'danger'"
-                    :disabled.prop="isLeaving">
-                    <wa-spinner v-if="isLeaving"></wa-spinner>
-                    <wa-icon name="check" v-if="leaveSuccess"></wa-icon>
-                    {{ isLeaving ? "Leaving..." : leaveSuccess ? "Chat Left" : "Leave Chat" }}
+                    variant="brand"
+                    type="submit"
+                    :disabled.prop="isRenaming || !editedActiveChatName.trim()"
+                >
+                    <wa-spinner v-if="isRenaming"></wa-spinner>
+                    Save
                 </wa-button>
-            </wa-drawer>
-        </div>
+            </div>
+        </form>
     </div>
 
-    <div slot="main-footer">
-        <ChatInput></ChatInput>
+    <div
+        v-if="showBranchRenameDialog"
+        class="chat-rename-modal-backdrop"
+        @click.self="showBranchRenameDialog = false"
+    >
+        <form class="chat-rename-modal" @submit.prevent="renameSelectedBranch">
+            <div class="chat-rename-modal-header">
+                <h2>Rename branch</h2>
+                <wa-button
+                    appearance="plain"
+                    class="chat-column-close"
+                    type="button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="showBranchRenameDialog = false"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </wa-button>
+            </div>
+
+            <label class="settings-field">
+                New branch name
+                <input
+                    v-model="editedBranchName"
+                    maxlength="30"
+                    type="text"
+                    autofocus
+                />
+            </label>
+
+            <p v-if="renameError" class="settings-error">Update failed.</p>
+
+            <div class="chat-rename-modal-actions">
+                <wa-button
+                    appearance="plain"
+                    type="button"
+                    @click="showBranchRenameDialog = false"
+                >
+                    Cancel
+                </wa-button>
+
+                <wa-button
+                    variant="brand"
+                    type="submit"
+                    :disabled.prop="isRenaming || !editedBranchName.trim()"
+                >
+                    <wa-spinner v-if="isRenaming"></wa-spinner>
+                    Save
+                </wa-button>
+            </div>
+        </form>
     </div>
 
-    
-    <main>
-        <section v-if="activeChatId">
-            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
-        </section>
-        <section v-else>
-            <ChatFlow :show-timestamp-column="showTimestampColumn"/>
-        </section>
-    </main>
-
-    
 </wa-page>
-
-
-

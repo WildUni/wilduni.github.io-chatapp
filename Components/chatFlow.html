@@ -1,12 +1,36 @@
 
 
 
-<div v-if="messagesWithProfiles.length">
+<div v-if="isMessagesLoading" class="chatflow-skeleton" aria-label="Loading messages">
+    <div class="message-skeleton-row">
+        <wa-skeleton effect="sheen" class="message-skeleton-avatar"></wa-skeleton>
+        <div class="message-skeleton-stack">
+            <wa-skeleton effect="sheen" class="message-skeleton-name"></wa-skeleton>
+            <wa-skeleton effect="sheen" class="message-skeleton-bubble message-skeleton-bubble-long"></wa-skeleton>
+        </div>
+    </div>
+    <div class="message-skeleton-row own-message-skeleton">
+        <div class="message-skeleton-stack">
+            <wa-skeleton effect="sheen" class="message-skeleton-bubble message-skeleton-bubble-medium"></wa-skeleton>
+        </div>
+        <wa-skeleton effect="sheen" class="message-skeleton-avatar"></wa-skeleton>
+    </div>
+    <div class="message-skeleton-row">
+        <wa-skeleton effect="sheen" class="message-skeleton-avatar"></wa-skeleton>
+        <div class="message-skeleton-stack">
+            <wa-skeleton effect="sheen" class="message-skeleton-name"></wa-skeleton>
+            <wa-skeleton effect="sheen" class="message-skeleton-bubble message-skeleton-bubble-short"></wa-skeleton>
+        </div>
+    </div>
+</div>
+
+<div v-else-if="messagesWithProfiles.length">
     <ul class='chatflow-wrapper'>
         <li
             v-for="msg in messagesWithProfiles"
             :key="msg.url || `${msg.value.user}-${msg.value.published}`"
             class="chatflow-message-item"
+            :data-message-id="msg.messageId"
         > 
             <div v-if="msg.isFirstInTimeChunk" class="chatflow-timestamp">
                 {{ formatMessageTimestamp(msg.value.published) }}
@@ -19,10 +43,23 @@
                     <Message :username="msg.profile?.name" 
                     :message-content="msg.value.content" 
                     :avatarUrl="msg.profile?.avatarUrl" 
+                    :avatar-is-loading="msg.profile?.avatarIsLoading"
                     :published="msg.value.published"
                     :is-own-message="msg.value.user === session?.actor"
                     :show-name="msg.isFirstInChunk"
-                    :show-avatar="msg.isLastInChunk"/>
+                    :show-avatar="msg.isLastInChunk"
+                    :is-pending="msg.isPending"
+                    :pending-status="msg.pendingStatus"
+                    :message-id="msg.messageId"
+                    :like-count="msg.likeCount"
+                    :is-liked="msg.isLikedByCurrentUser"
+                    :is-pinned="msg.isPinned"
+                    :reply-to="msg.value.replyTo"
+                    :reply-to-content="msg.value.replyToContent"
+                    @toggle-like="toggleLike(msg)"
+                    @toggle-pin="togglePin(msg)"
+                    @reply="replyToMessage(msg)"
+                    @open-reply="scrollToMessage(msg.value.replyTo)"/>
                 </div>
                 <div
                     v-if="showTimestampColumn"
