@@ -201,6 +201,18 @@ function setup() {
   );
 
   const infoMemberActors = computed(() => {
+    if (membershipActivities.value.every(obj => obj.value.value === "Join")) {
+      const users = membershipActivities.value
+        .filter(obj => obj.value.user && obj.value.published);
+      const uniqueUsers = new Set(users.map(obj => obj.value.user));
+
+      if (uniqueUsers.size === users.length) {
+        return users
+          .sort((a, b) => a.value.published - b.value.published)
+          .map(obj => obj.value.user);
+      }
+    }
+
     const latestByUser = membershipActivities.value.reduce((acc, obj) => {
       const { user, published } = obj.value;
       if (!user || !published) return acc;

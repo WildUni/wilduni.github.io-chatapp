@@ -84,6 +84,97 @@ export const useChatStore = defineStore("chat", () => {
     }, 1500);
   }
 
+  function isOwnObject(obj) {
+    return obj?.actor === session.value?.actor;
+  }
+
+  async function deleteOwnObjects(objects) {
+    const urls = [...new Set(
+      objects
+        .filter(obj => isOwnObject(obj) && obj.url)
+        .map(obj => obj.url)
+    )];
+
+    await Promise.all(
+      urls.map(url =>
+        graffiti.delete(url, session.value).catch(() => null)
+      )
+    );
+  }
+
+  async function deleteOwnUserMembershipObjects(chatId, keepUrl = null) {
+    if (!chatId) return;
+
+    await deleteOwnObjects(
+      activities.value.filter(obj =>
+        obj.value?.action === 'Membership' &&
+        obj.value?.chatId === chatId &&
+        obj.url !== keepUrl
+      )
+    );
+  }
+
+  async function compactOwnUserMembership(chatId, keepObject = null) {
+    if (!chatId) return;
+    await deleteOwnUserMembershipObjects(chatId, keepObject?.url ?? null);
+  }
+
+  async function deleteOwnChatMembershipObjects(chatId, keepUrl = null) {
+    if (!chatId) return;
+
+    await deleteOwnObjects(
+      allMembershipActivities.value.filter(obj =>
+        getMembershipChatId(obj) === chatId &&
+        obj.value?.action === 'Membership' &&
+        obj.value?.user === session.value?.actor &&
+        obj.url !== keepUrl
+      )
+    );
+  }
+
+  async function postUserMembershipJoin(chatId, chatName, published = Date.now()) {
+    const joinObject = await graffiti.post(
+      {
+        value: {
+          action: 'Membership',
+          value: 'Join',
+          chatId,
+          chatName,
+          published,
+        },
+        channels: [`user:${session.value.actor}:Membership`],
+        allowed: []
+      },
+      session.value
+    );
+
+    compactOwnUserMembership(chatId, joinObject);
+    return joinObject;
+  }
+
+  async function postChatMembershipJoin(chatId, published = Date.now()) {
+    const joinObject = await graffiti.post(
+      {
+        value: {
+          action: 'Membership',
+          value: 'Join',
+          user: session.value.actor,
+          published,
+        },
+        channels: [`chat:${chatId}:Membership`],
+      },
+      session.value
+    );
+
+    compactOwnChatMembership(chatId, joinObject);
+    return joinObject;
+  }
+
+  async function compactOwnChatMembership(chatId, keepObject = null) {
+    if (!chatId) return;
+    await deleteOwnChatMembershipObjects(chatId, keepObject?.url ?? null);
+  }
+
   // ============================================================
   // ACTIONS - Create New Chat
   // ============================================================
@@ -119,20 +210,7 @@ export const useChatStore = defineStore("chat", () => {
         // Collect all posts for root-level chat setup
         postOperations.push(
           // 1. Post membership record to user's channel
-          graffiti.post(
-            {
-              value: {
-                action: 'Membership',
-                value: 'Join',
-                chatId: chatId,
-                chatName: trimmedChatName,
-                published: now,
-              },
-              channels: [`user:${session.value.actor}:Membership`],
-              allowed: []
-            },
-            session.value
-          ),
+          postUserMembershipJoin(chatId, trimmedChatName, now),
           // 2. Post creation activity to chat channel
           graffiti.post(
             {
@@ -149,18 +227,7 @@ export const useChatStore = defineStore("chat", () => {
             session.value
           ),
           // 3. Post user membership to chat channel
-          graffiti.post(
-            {
-              value: {
-                action: 'Membership',
-                value: 'Join',
-                user: session.value.actor,
-                published: now,
-              },
-              channels: [`chat:${chatId}:Membership`],
-            },
-            session.value
-          )
+          postChatMembershipJoin(chatId, now)
         );
       }
 
@@ -257,20 +324,7 @@ export const useChatStore = defineStore("chat", () => {
             },
             session.value
           ),
-          graffiti.post(
-            {
-              value: {
-                action: 'Membership',
-                value: 'Join',
-                chatId,
-                chatName: trimmedName,
-                published: now,
-              },
-              channels: [`user:${session.value.actor}:Membership`],
-              allowed: []
-            },
-            session.value
-          )
+          postUserMembershipJoin(chatId, trimmedName, now)
         );
       }
 
@@ -403,6 +457,40 @@ export const useChatStore = defineStore("chat", () => {
     true
   );
 
+  const compactingUserMembershipChats = new Set();
+
+  watch(
+    () => activities.value.map(obj => `${obj.url}:${obj.value.chatId}:${obj.value.value}:${obj.value.published}`).join('|'),
+    async () => {
+      if (!session.value?.actor || isMembershipFirstPoll.value) return;
+
+      const latestByChat = activities.value.reduce((acc, obj) => {
+        const { chatId, published } = obj.value;
+        if (!chatId || !published || !isOwnObject(obj)) return acc;
+        if (!acc[chatId] || acc[chatId].value.published < published) acc[chatId] = obj;
+        return acc;
+      }, {});
+
+      await Promise.all(
+        Object.entries(latestByChat).map(async ([chatId, latest]) => {
+          if (compactingUserMembershipChats.has(chatId)) return;
+          compactingUserMembershipChats.add(chatId);
+
+          try {
+            if (latest.value.value === 'Join') {
+              await compactOwnUserMembership(chatId, latest);
+            } else {
+              await deleteOwnUserMembershipObjects(chatId);
+            }
+          } finally {
+            compactingUserMembershipChats.delete(chatId);
+          }
+        })
+      );
+    },
+    { immediate: true }
+  );
+
   const activeChatActivityChannels = computed(() => {
     return session.value && activeChatRootId.value
       ? [`chat:${activeChatRootId.value}:Activities`]
@@ -481,11 +569,45 @@ export const useChatStore = defineStore("chat", () => {
 
   /**
    * Compute list of active chats for the current user
-   * Filters to only show chats where the latest action is 'Join'
-   * (effectively hides left/deleted chats)
+   * New membership state is represented by the presence of Join objects.
+   * The legacy reducer path keeps old Join/Leave logs correct while compaction deletes them.
    */
   const joinedChatList = computed(() => {
-    // Find the most recent membership record for each chat
+    if (activities.value.every(obj => obj.value.value === 'Join')) {
+      const seenChatIds = new Set();
+      let hasDuplicateChat = false;
+
+      for (const obj of activities.value) {
+        const chatId = obj.value.chatId;
+        if (!chatId) continue;
+        if (seenChatIds.has(chatId)) {
+          hasDuplicateChat = true;
+          break;
+        }
+        seenChatIds.add(chatId);
+      }
+
+      if (!hasDuplicateChat) {
+        return activities.value
+          .filter(obj => obj.value.chatId)
+          .sort((a, b) => b.value.published - a.value.published);
+      }
+    }
+
+    if (activities.value.every(obj => obj.value.value === 'Join')) {
+      const latestByChat = activities.value
+        .reduce((latestByChat, obj) => {
+          const { chatId, published } = obj.value;
+          if (!chatId || !published) return latestByChat;
+          if (!latestByChat[chatId] || latestByChat[chatId].value.published < published) {
+            latestByChat[chatId] = obj;
+          }
+          return latestByChat;
+        }, {});
+
+      return Object.values(latestByChat);
+    }
+
     const latestByChat = activities.value.reduce((acc, obj) => {
       const { chatId, published } = obj.value;
 
@@ -493,7 +615,6 @@ export const useChatStore = defineStore("chat", () => {
 
       const existing = acc[chatId];
 
-      // Keep only the most recent activity for each chat
       if (!existing || existing.value.published < published) {
         acc[chatId] = obj;
       }
@@ -501,7 +622,6 @@ export const useChatStore = defineStore("chat", () => {
       return acc;
     }, {});
 
-    // Filter to only show chats where user is currently joined
     return Object.values(latestByChat).filter(
       chat => chat.value.value === 'Join'
     );
@@ -551,7 +671,101 @@ export const useChatStore = defineStore("chat", () => {
     return membershipChannel?.split(':')[1] ?? null;
   }
 
+  const compactingChatMemberships = new Set();
+
+  watch(
+    () => allMembershipActivities.value.map(obj => `${obj.url}:${getMembershipChatId(obj)}:${obj.value.user}:${obj.value.value}:${obj.value.published}`).join('|'),
+    async () => {
+      if (!session.value?.actor || isAllMembershipFirstPoll.value) return;
+
+      const latestOwnByChat = allMembershipActivities.value.reduce((acc, obj) => {
+        const chatId = getMembershipChatId(obj);
+        const { user, published } = obj.value;
+        if (!chatId || user !== session.value.actor || !published || !isOwnObject(obj)) return acc;
+        if (!acc[chatId] || acc[chatId].value.published < published) acc[chatId] = obj;
+        return acc;
+      }, {});
+
+      await Promise.all(
+        Object.entries(latestOwnByChat).map(async ([chatId, latest]) => {
+          if (compactingChatMemberships.has(chatId)) return;
+          compactingChatMemberships.add(chatId);
+
+          try {
+            if (latest.value.value === 'Join') {
+              await compactOwnChatMembership(chatId, latest);
+            } else {
+              await deleteOwnChatMembershipObjects(chatId);
+            }
+          } finally {
+            compactingChatMemberships.delete(chatId);
+          }
+        })
+      );
+    },
+    { immediate: true }
+  );
+
   const memberActorsByChatId = computed(() => {
+    if (allMembershipActivities.value.every(obj => obj.value.value === 'Join')) {
+      const seenMemberships = new Set();
+      let hasDuplicateMembership = false;
+
+      for (const obj of allMembershipActivities.value) {
+        const chatId = getMembershipChatId(obj);
+        const user = obj.value.user;
+        if (!chatId || !user) continue;
+        const key = `${chatId}:${user}`;
+        if (seenMemberships.has(key)) {
+          hasDuplicateMembership = true;
+          break;
+        }
+        seenMemberships.add(key);
+      }
+
+      if (hasDuplicateMembership) {
+        return Object.fromEntries(
+          Object.entries(
+            allMembershipActivities.value.reduce((acc, obj) => {
+              const chatId = getMembershipChatId(obj);
+              const { user, published } = obj.value;
+              if (!chatId || !user || !published) return acc;
+              acc[chatId] ??= {};
+              if (!acc[chatId][user] || acc[chatId][user].value.published < published) {
+                acc[chatId][user] = obj;
+              }
+              return acc;
+            }, {})
+          ).map(([chatId, latestByUser]) => [
+            chatId,
+            Object.values(latestByUser)
+              .sort((a, b) => a.value.published - b.value.published)
+              .map(obj => obj.value.user),
+          ])
+        );
+      }
+
+      const joinedByChat = allMembershipActivities.value.reduce((acc, obj) => {
+        const chatId = getMembershipChatId(obj);
+        const { user, published } = obj.value;
+
+        if (!chatId || !user || !published) return acc;
+
+        acc[chatId] ??= [];
+        acc[chatId].push(obj);
+        return acc;
+      }, {});
+
+      return Object.fromEntries(
+        Object.entries(joinedByChat).map(([chatId, joins]) => [
+          chatId,
+          joins
+            .sort((a, b) => a.value.published - b.value.published)
+            .map(obj => obj.value.user),
+        ])
+      );
+    }
+
     const latestByChatAndUser = allMembershipActivities.value.reduce((acc, obj) => {
       const chatId = getMembershipChatId(obj);
       const { user, published } = obj.value;
@@ -663,7 +877,7 @@ export const useChatStore = defineStore("chat", () => {
       : [];
   });
 
-  const { objects: chatImageActivities } = useGraffitiDiscover(
+  const { objects: chatImageActivities, isFirstPoll: isChatActivitiesFirstPoll } = useGraffitiDiscover(
     chatActivityChannels,
     {
       properties: {
@@ -673,6 +887,8 @@ export const useChatStore = defineStore("chat", () => {
             action: { type: 'string' },
             chatId: { type: 'string' },
             url: { type: 'string' },
+            content: { type: 'string' },
+            user: { type: 'string' },
             published: { type: 'number' },
           }
         }
@@ -760,51 +976,12 @@ export const useChatStore = defineStore("chat", () => {
     },
     { immediate: true }
   );
-  const messageChannels = computed(() => {
-    return session.value && areChatNamesReady.value
-      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Messages`)
-      : [];
-  });
-
-  const { objects: allChatMessages, isFirstPoll: isAllChatMessagesFirstPoll } = useGraffitiDiscover(
-    messageChannels,
-    {
-      properties: {
-        value: {
-          required: ['action', 'content', 'published', 'user'],
-          properties: {
-            action: { const: 'Message' },
-            chatId: { type: 'string' },
-            content: { type: 'string' },
-            published: { type: 'number' },
-            user: { type: 'string' },
-          }
-        }
-      },
-    },
-    session,
-    true
-  );
-
-  function getMessageChatId(obj) {
-    if (obj.value.chatId) return obj.value.chatId;
-
-    const channels = [
-      ...(obj.channels ?? []),
-      ...(obj.object?.channels ?? []),
-      obj.channel,
-    ].filter(Boolean);
-    const messageChannel = channels.find(channel => /^chat:[^:]+:Messages$/.test(channel));
-
-    return messageChannel?.split(':')[1] ?? null;
-  }
 
   const latestMessageAtByChatId = computed(() => {
-    return allChatMessages.value.reduce((acc, obj) => {
-      const chatId = getMessageChatId(obj);
-      const { published } = obj.value;
+    return chatImageActivities.value.reduce((acc, obj) => {
+      const { action, chatId, published } = obj.value;
 
-      if (!chatId || !published) return acc;
+      if (action !== 'LatestMessage' || !chatId || !published) return acc;
 
       acc[chatId] = Math.max(acc[chatId] ?? 0, published);
       return acc;
@@ -812,11 +989,10 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   const latestIncomingMessageAtByChatId = computed(() => {
-    return allChatMessages.value.reduce((acc, obj) => {
-      const chatId = getMessageChatId(obj);
-      const { published, user } = obj.value;
+    return chatImageActivities.value.reduce((acc, obj) => {
+      const { action, chatId, published, user } = obj.value;
 
-      if (!chatId || !published || user === session.value?.actor) return acc;
+      if (action !== 'LatestMessage' || !chatId || !published || user === session.value?.actor) return acc;
 
       acc[chatId] = Math.max(acc[chatId] ?? 0, published);
       return acc;
@@ -828,17 +1004,19 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   watch(
-    () => [...new Set(allChatMessages.value.map(message => message.value.user).filter(Boolean))],
+    () => [...new Set(chatImageActivities.value
+      .filter(obj => obj.value.action === 'LatestMessage')
+      .map(message => message.value.user)
+      .filter(Boolean))],
     (users) => profileCache.ensureUsers(users),
     { immediate: true }
   );
 
   const latestMessageByRootChatId = computed(() => {
-    return allChatMessages.value.reduce((acc, obj) => {
-      const chatId = getMessageChatId(obj);
-      const { content, published, user } = obj.value;
+    return chatImageActivities.value.reduce((acc, obj) => {
+      const { action, chatId, content, published, user } = obj.value;
 
-      if (!chatId || !content || !published || !user) return acc;
+      if (action !== 'LatestMessage' || !chatId || !content || !published || !user) return acc;
 
       if (!acc[chatId] || acc[chatId].published < published) {
         acc[chatId] = {
@@ -901,12 +1079,44 @@ export const useChatStore = defineStore("chat", () => {
 
   const areChatMessagesReady = computed(() => {
     return joinedChatList.value.length === 0 ||
-      (areChatNamesReady.value && !isAllChatMessagesFirstPoll.value);
+      (areChatNamesReady.value && !isChatActivitiesFirstPoll.value);
   });
 
   const isChatListLoading = computed(() => {
     return isBaseChatListLoading.value || !areChatNamesReady.value;
   });
+
+  async function recordLatestMessage(message) {
+    if (!session.value?.actor || !message?.chatId || !message?.content) return false;
+
+    try {
+      const previewObject = await graffiti.post(
+        {
+          value: {
+            action: 'LatestMessage',
+            chatId: message.chatId,
+            content: message.content,
+            published: message.published ?? Date.now(),
+            user: message.user ?? session.value.actor,
+          },
+          channels: [`chat:${message.chatId}:Activities`],
+        },
+        session.value
+      );
+
+      await deleteOwnObjects(
+        chatImageActivities.value.filter(obj =>
+          obj.value?.action === 'LatestMessage' &&
+          obj.value?.chatId === message.chatId &&
+          obj.url !== previewObject.url
+        )
+      );
+    } catch (err) {
+      return false;
+    }
+
+    return true;
+  }
 
   async function markChatRead(chatId) {
     if (!session.value?.actor || !chatId) return false;
@@ -1043,33 +1253,9 @@ export const useChatStore = defineStore("chat", () => {
         // Post both membership updates in parallel for better performance
         await Promise.all([
           // Post join membership to chat's membership channel
-          graffiti.post(
-            {
-              value: {
-                action: 'Membership',
-                value: 'Join',
-                user: session.value.actor,
-                published: now,
-              },
-              channels: [`chat:${joinChatId.value}:Membership`],
-            },
-            session.value
-          ),
+          postChatMembershipJoin(joinChatId.value, now),
           // Post join membership to user's membership channel
-          graffiti.post(
-            {
-              value: {
-                action: 'Membership',
-                value: 'Join',
-                chatId: joinChatId.value,
-                chatName: chat.value.chatName,
-                published: now,
-              },
-              channels: [`user:${session.value.actor}:Membership`],
-              allowed: []
-            },
-            session.value
-          )
+          postUserMembershipJoin(joinChatId.value, chat.value.chatName, now)
         ]);
 
         // Show success and clear input
@@ -1109,37 +1295,9 @@ export const useChatStore = defineStore("chat", () => {
     leaveSuccess.value = false;
 
     try {
-      const now = Date.now();
-
-      // Post both leave actions in parallel
       await Promise.all([
-        // 1. Post leave action to chat's membership channel
-        graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Leave',
-              user: session.value.actor,
-              published: now,
-            },
-            channels: [`chat:${chatId}:Membership`],
-          },
-          session.value
-        ),
-        // 2. Post leave action to user's membership channel
-        graffiti.post(
-          {
-            value: {
-              action: 'Membership',
-              value: 'Leave',
-              chatId: chatId,
-              published: now,
-            },
-            channels: [`user:${session.value.actor}:Membership`],
-            allowed: []
-          },
-          session.value
-        )
+        deleteOwnUserMembershipObjects(chatId),
+        deleteOwnChatMembershipObjects(chatId),
       ]);
 
       // Clear active chat state if leaving the currently open chat
@@ -1187,6 +1345,7 @@ export const useChatStore = defineStore("chat", () => {
     hasUnreadByRootChatId,
     latestMessageByRootChatId,
     areChatMessagesReady,
+    recordLatestMessage,
     markChatRead,
     setReplyTarget,
     clearReplyTarget,

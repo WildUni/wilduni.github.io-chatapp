@@ -100,6 +100,13 @@ function setup() {
         },
         session.value,
       );
+
+      chatStore.recordLatestMessage({
+        chatId,
+        content: trimmedMessage,
+        published,
+        user: actor,
+      });
     } catch (err) {
       sendError.value = "Message failed to send. Please try again.";
       pendingMessagesStore.failPendingMessage(clientId);
