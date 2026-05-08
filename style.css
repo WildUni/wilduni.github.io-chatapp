@@ -87,6 +87,27 @@ ul {
   border-radius: 50%;
 }
 
+.chat-list-member-stack {
+  display: flex;
+  flex: 0 0 58px;
+  align-items: center;
+  width: 58px;
+  min-width: 58px;
+  min-height: 46px;
+  padding-left: 8px;
+}
+
+.chat-list-member-avatar {
+  --size: 38px;
+  margin-left: -8px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+}
+
+.chat-list-member-avatar:first-child {
+  margin-left: 0;
+}
+
 .chat-list-skeleton-copy {
   display: flex;
   flex: 1;
@@ -112,6 +133,8 @@ ul {
 .chatListItem-wrapper {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .chatListItem-name {
@@ -120,18 +143,33 @@ ul {
   letter-spacing: 0.02em;
 }
 
-.chatListItem-id {
+.chatListItem-id,
+.chatListItem-preview {
   color: #696969;
 }
 
-.chatListItem-id-wrapper {
-  max-width: 200px;
+.chatListItem-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  color: #696969;
+  font-size: 0.88rem;
+}
+
+.chatListItem-time {
+  color: #8a8a8a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .fade-text {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 200px;
+  min-width: 0;
+  max-width: 100%;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
@@ -265,6 +303,7 @@ ul {
 .avatar {
   display: flex;
   align-items: center;
+  position: relative;
 }
 
 .avatar-placeholder {
@@ -355,9 +394,76 @@ ul {
 }
 
 .message-chunk-name {
+  border: 0;
+  background: transparent;
   color: #454545;
+  cursor: pointer;
+  font: inherit;
   font-weight: 600;
   padding: 0 4px;
+}
+
+.message-chunk-name:hover,
+.message-chunk-name:focus-visible {
+  color: #0b79ff;
+  outline: none;
+  text-decoration: underline;
+}
+
+.message-avatar-button {
+  display: inline-flex;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.message-avatar-button:focus-visible {
+  outline: 2px solid #0b79ff;
+  outline-offset: 2px;
+}
+
+.message-profile-card {
+  position: absolute;
+  left: calc(100% + 10px);
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  width: min(280px, 70vw);
+  padding: 12px;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.message-wrapper.own-message .message-profile-card {
+  right: calc(100% + 10px);
+  left: auto;
+}
+
+.message-profile-card-avatar {
+  --size: 56px;
+}
+
+.message-profile-card-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.message-profile-card-copy strong {
+  overflow-wrap: anywhere;
+}
+
+.message-profile-card-copy p {
+  margin: 0;
+  color: #696969;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
 }
 
 .message-wrapper .card-header {
@@ -1307,6 +1413,9 @@ wa-drawer::part(footer) {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
+}
+
+.tree-node-label.long-branch-name {
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
@@ -1351,6 +1460,15 @@ wa-drawer::part(footer) {
 .branch-actions-dropdown {
   margin-left: auto;
   flex: 0 0 auto;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tree-node-row:hover .branch-actions-dropdown,
+.tree-node-row:focus-within .branch-actions-dropdown,
+.branch-actions-dropdown[open] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .settings-menu {
@@ -1600,6 +1718,8 @@ wa-drawer::part(footer) {
 .chatListItem-wrapper{
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-width: 0;
 }
 
 .chatListItem-name{
@@ -1608,14 +1728,33 @@ wa-drawer::part(footer) {
     letter-spacing: 0.02em;
 }
 
-.chatListItem-id{
+.chatListItem-id,
+.chatListItem-preview{
     color:#696969;
+}
+
+.chatListItem-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  max-width: 240px;
+  color: #696969;
+  font-size: 0.88rem;
+}
+
+.chatListItem-time {
+  color: #8a8a8a;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .fade-text {
   overflow: hidden;
   white-space: nowrap;
-  max-width: 200px;
+  min-width: 0;
+  max-width: 100%;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
   mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }

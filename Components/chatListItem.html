@@ -6,9 +6,26 @@
     class="chat-list-avatar-skeleton"
   ></wa-skeleton>
   <wa-avatar
+    v-else-if="chatImageUrl"
+    label="Chat image"
+    :image.prop="chatImageUrl"
+  ></wa-avatar>
+  <div
+    v-else-if="previewMembers.length"
+    class="chat-list-member-stack"
+    aria-label="Chat members"
+  >
+    <wa-avatar
+      v-for="member in previewMembers"
+      :key="member.user"
+      label="Member avatar"
+      :image.prop="member.profile.avatarUrl || ''"
+      class="chat-list-member-avatar"
+    ></wa-avatar>
+  </div>
+  <wa-avatar
     v-else
     label="Chat image"
-    :image.prop="chatImageUrl || ''"
   ></wa-avatar>
   <span
     v-if="hasUnread"
@@ -17,8 +34,9 @@
   ></span>
   <div class="chatListItem-wrapper">
     <div class="chatListItem-name fade-text">{{chatName}}</div>
-    <div class="chatListItem-id-wrapper fade-text">
-      Chat ID: {{ chatId }}
+    <div class="chatListItem-preview-row">
+      <span class="chatListItem-preview fade-text">{{ latestMessageText }}</span>
+      <span v-if="latestMessageAge" class="chatListItem-time">{{ latestMessageAge }}</span>
     </div>
   </div>
 </div>

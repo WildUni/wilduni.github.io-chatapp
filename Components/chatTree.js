@@ -219,6 +219,7 @@ const TreeNode = {
       <span class="tree-node-row">
         <span
           class="tree-node-label"
+          :class="{ 'long-branch-name': node.name.length > 20 }"
           @click.stop="$emit('select-chat', node.id, node.name, node.rootChatId, node.parentChatId)"
         >
           <span

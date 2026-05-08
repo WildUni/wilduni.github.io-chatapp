@@ -310,6 +310,10 @@ function setup() {
     });
   }
 
+  function mentionUser(message) {
+    chatStore.queueMention(message.profile?.name || message.value.user);
+  }
+
   function scrollToMessage(messageId) {
     if (!messageId) return;
 
@@ -438,6 +442,7 @@ function setup() {
     toggleLike,
     togglePin,
     replyToMessage,
+    mentionUser,
     scrollToMessage
   };
 }

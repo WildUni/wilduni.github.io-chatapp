@@ -15,7 +15,9 @@
             :chatName="chat.value.displayChatName"
             :chatImageUrl="chatImageUrls[chat.value.chatId] || ''"
             :isChatImageLoading="chatImageLoadingByChat[chat.value.chatId]"
+            :preview-members="chatPreviewMembersByChatId[chat.value.chatId] || []"
             :hasUnread="hasUnreadByRootChatId[chat.value.chatId]"
+            :latest-message="latestMessageByRootChatId[chat.value.chatId]"
             @click="emitUpdateChat(chat.value.chatId, chat.value.displayChatName, chat.value.chatId, chat.value.chatId)"
         ></ChatListItem>
     </li>

@@ -16,6 +16,7 @@
         </wa-button>
     </div>
     <wa-input placeholder="Your Message..." 
+    ref="messageInput"
     with-clear 
     :value='myMessage' 
     @input="myMessage = $event.target.value"

@@ -17,7 +17,9 @@ function setup(props, { emit }) {
       chatList,
       chatImageUrls,
       chatImageLoadingByChat,
+      chatPreviewMembersByChatId,
       hasUnreadByRootChatId,
+      latestMessageByRootChatId,
       isChatListLoading
     } = storeToRefs(chatStore)
 
@@ -31,7 +33,9 @@ function setup(props, { emit }) {
       chatList,
       chatImageUrls,
       chatImageLoadingByChat,
+      chatPreviewMembersByChatId,
       hasUnreadByRootChatId,
+      latestMessageByRootChatId,
       isChatListLoading,
     };
 }

@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { nextTick, ref, watch } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -12,11 +12,26 @@ function setup() {
   const session = useGraffitiSession();
   const chatStore = useChatStore();
   const pendingMessagesStore = usePendingMessagesStore();
-  const { activeChatId, replyTarget } = storeToRefs(chatStore);
+  const { activeChatId, replyTarget, mentionRequest } = storeToRefs(chatStore);
 
   const myMessage = ref('');
+  const messageInput = ref(null);
   const isSending = ref(false);
   const sendError = ref("");
+
+  watch(
+    mentionRequest,
+    async (request) => {
+      if (!request?.text) return;
+
+      myMessage.value = myMessage.value
+        ? `${myMessage.value.trimEnd()} ${request.text}`
+        : request.text;
+
+      await nextTick();
+      messageInput.value?.focus?.();
+    },
+  );
 
   /**
    * Send a message to the active chat
@@ -88,6 +103,7 @@ function setup() {
 
   return {
     myMessage,
+    messageInput,
     sendMessage,
     isSending,
     sendError,

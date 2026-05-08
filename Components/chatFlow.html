@@ -41,6 +41,7 @@
             >
                 <div class="chatflow-message-lane">
                     <Message :username="msg.profile?.name" 
+                    :profile-bio="msg.profile?.bio"
                     :message-content="msg.value.content" 
                     :avatarUrl="msg.profile?.avatarUrl" 
                     :avatar-is-loading="msg.profile?.avatarIsLoading"
@@ -59,6 +60,7 @@
                     @toggle-like="toggleLike(msg)"
                     @toggle-pin="togglePin(msg)"
                     @reply="replyToMessage(msg)"
+                    @mention-user="mentionUser(msg)"
                     @open-reply="scrollToMessage(msg.value.replyTo)"/>
                 </div>
                 <div

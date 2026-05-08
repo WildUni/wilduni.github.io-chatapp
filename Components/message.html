@@ -10,18 +10,48 @@
             effect="sheen"
             class="message-avatar-skeleton"
         ></wa-skeleton>
-        <wa-avatar
+        <button
             v-else-if="showAvatar"
-            label="User avatar"
-            :image.prop="avatarUrl || ''"
-            class="message-avatar"
-        ></wa-avatar>
+            type="button"
+            class="message-avatar-button"
+            title="View profile"
+            aria-label="View profile"
+            @click.stop="toggleProfileCard"
+        >
+            <wa-avatar
+                label="User avatar"
+                :image.prop="avatarUrl || ''"
+                class="message-avatar"
+            ></wa-avatar>
+        </button>
+
+        <div
+            v-if="showAvatar && isProfileCardOpen"
+            class="message-profile-card"
+            @click.stop
+        >
+            <wa-avatar
+                label="Profile image"
+                :image.prop="avatarUrl || ''"
+                class="message-profile-card-avatar"
+            ></wa-avatar>
+            <div class="message-profile-card-copy">
+                <strong>{{ username }}</strong>
+                <p>{{ profileBio || "No bio yet." }}</p>
+            </div>
+        </div>
     </div>
 
     <div class="message-stack">
-        <div v-if="showName" class="message-chunk-name">
+        <button
+            v-if="showName"
+            type="button"
+            class="message-chunk-name"
+            title="Mention user"
+            @click.stop="$emit('mention-user')"
+        >
             {{username}}
-        </div>
+        </button>
 
         <wa-card class="card-header">
             <div v-if="isPinned" class="message-pin-badge" title="Pinned">

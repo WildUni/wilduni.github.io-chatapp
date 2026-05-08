@@ -66,6 +66,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeChatImageUrl = ref(null);
   const activeChatImageLoading = ref(false);
   const replyTarget = ref(null);
+  const mentionRequest = ref(null);
   let currentChatImageObjectUrl = null;
 
   // ============================================================
@@ -585,6 +586,18 @@ export const useChatStore = defineStore("chat", () => {
     return profileCache.getProfile(user).name || user;
   }
 
+  const chatPreviewMembersByChatId = computed(() =>
+    Object.fromEntries(
+      Object.entries(memberActorsByChatId.value).map(([chatId, actors]) => [
+        chatId,
+        actors.slice(0, 4).map(user => ({
+          user,
+          profile: profileCache.getProfile(user),
+        })),
+      ])
+    )
+  );
+
   function getAutomaticChatName(chatId) {
     const memberActors = memberActorsByChatId.value[chatId] ?? [];
     const ownActor = session.value?.actor;
@@ -869,6 +882,41 @@ export const useChatStore = defineStore("chat", () => {
     }, {});
   });
 
+  watch(
+    () => [...new Set(allChatMessages.value.map(message => message.value.user).filter(Boolean))],
+    (users) => profileCache.ensureUsers(users),
+    { immediate: true }
+  );
+
+  const latestMessageByRootChatId = computed(() => {
+    const rootByBranchId = Object.entries(branchIdsByRootChatId.value).reduce(
+      (acc, [rootChatId, branchIds]) => {
+        for (const branchId of branchIds) acc[branchId] = rootChatId;
+        return acc;
+      },
+      {}
+    );
+
+    return allChatMessages.value.reduce((acc, obj) => {
+      const chatId = getMessageChatId(obj);
+      const rootChatId = rootByBranchId[chatId];
+      const { content, published, user } = obj.value;
+
+      if (!rootChatId || !content || !published || !user) return acc;
+
+      if (!acc[rootChatId] || acc[rootChatId].published < published) {
+        acc[rootChatId] = {
+          content,
+          published,
+          user,
+          senderName: getProfileName(user),
+        };
+      }
+
+      return acc;
+    }, {});
+  });
+
   const readReceiptChannels = computed(() => {
     return session.value ? [`user:${session.value.actor}:ReadReceipts`] : [];
   });
@@ -949,6 +997,15 @@ export const useChatStore = defineStore("chat", () => {
 
   function clearReplyTarget() {
     replyTarget.value = null;
+  }
+
+  function queueMention(userName) {
+    if (!userName) return;
+
+    mentionRequest.value = {
+      id: crypto.randomUUID(),
+      text: `@${userName} `,
+    };
   }
 
 
@@ -1189,17 +1246,21 @@ export const useChatStore = defineStore("chat", () => {
     activeChatImageUrl,
     activeChatImageLoading,
     replyTarget,
+    mentionRequest,
     chatImageUrls,
     chatImageLoadingByChat,
+    chatPreviewMembersByChatId,
 
     // Chat list
     chatList,
     isChatListLoading,
     hasUnreadByChatId,
     hasUnreadByRootChatId,
+    latestMessageByRootChatId,
     markChatRead,
     setReplyTarget,
     clearReplyTarget,
+    queueMention,
 
     // Create chat
     newChatName,
