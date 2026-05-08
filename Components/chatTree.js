@@ -126,8 +126,9 @@ function setup(props, { emit }) {
         ? rootChatName.value + " (General)"
         : null;
       const childNodes = (childrenByParent.value[rootChatId] || [])
-        .map(childId => constructTree(childId, new Set(visited)))
+        .map(childId => constructTree(childId, visited))
         .filter(Boolean);
+      visited.delete(rootChatId);
 
       return {
         id: rootChatId,

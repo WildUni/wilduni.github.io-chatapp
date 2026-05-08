@@ -1,6 +1,11 @@
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
-import { delay } from "../index.js";
+
+function delay(ms = 1000) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms);
+  });
+}
 
 function setup() {
   const chatStore = useChatStore();

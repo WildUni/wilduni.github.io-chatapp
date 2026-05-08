@@ -38,6 +38,8 @@ function setup() {
    * Validates chat and message content before posting
    */
   async function sendMessage() {
+    if (isSending.value) return;
+
     // Trim whitespace for validation and sending
     const trimmedMessage = myMessage.value.trim();
 
@@ -53,7 +55,13 @@ function setup() {
       return;
     }
 
+    if (!session.value?.actor) {
+      sendError.value = "Please log in before sending a message";
+      return;
+    }
+
     const chatId = activeChatId.value;
+    const actor = session.value.actor;
     const published = Date.now();
     const clientId = crypto.randomUUID();
     const reply = replyTarget.value;
@@ -67,7 +75,7 @@ function setup() {
       chatId,
       content: trimmedMessage,
       published,
-      user: session.value?.actor,
+      user: actor,
       replyTo: reply?.id,
       replyToContent: reply?.content,
       replyToUser: reply?.user,
@@ -83,7 +91,7 @@ function setup() {
             clientId,
             content: trimmedMessage,
             published,
-            user: session.value?.actor,
+            user: actor,
             replyTo: reply?.id,
             replyToContent: reply?.content,
             replyToUser: reply?.user,

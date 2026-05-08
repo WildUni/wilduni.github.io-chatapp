@@ -1,9 +1,11 @@
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 function setup() {
     const messageWrapper = ref(null);
     const isActionTrayPinned = ref(false);
     const isProfileCardOpen = ref(false);
+    const hasOpenOverlay = computed(() => isActionTrayPinned.value || isProfileCardOpen.value);
+    let isListeningForOutsideClick = false;
 
     function toggleActionTray() {
         isActionTrayPinned.value = !isActionTrayPinned.value;
@@ -20,13 +22,27 @@ function setup() {
         isProfileCardOpen.value = !isProfileCardOpen.value;
     }
 
-    onMounted(() => {
+    function addOutsideClickListener() {
+        if (isListeningForOutsideClick) return;
         document.addEventListener("click", closeActionTrayOnOutsideClick);
+        isListeningForOutsideClick = true;
+    }
+
+    function removeOutsideClickListener() {
+        if (!isListeningForOutsideClick) return;
+        document.removeEventListener("click", closeActionTrayOnOutsideClick);
+        isListeningForOutsideClick = false;
+    }
+
+    watch(hasOpenOverlay, (isOpen) => {
+        if (isOpen) {
+            addOutsideClickListener();
+        } else {
+            removeOutsideClickListener();
+        }
     });
 
-    onBeforeUnmount(() => {
-        document.removeEventListener("click", closeActionTrayOnOutsideClick);
-    });
+    onBeforeUnmount(removeOutsideClickListener);
 
     return {
         messageWrapper,

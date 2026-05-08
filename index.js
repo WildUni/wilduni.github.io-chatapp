@@ -34,18 +34,6 @@ function loadComponent(name) {
   return () => import(`./Pages/${name}.js`).then((m) => m.default());
 }
 
-/**
- * Create a delay/pause in execution using a Promise
- * Useful for timing operations or debouncing actions
- * @param {number} ms - Milliseconds to delay (default: 1000ms)
- * @returns {Promise} Promise that resolves after the specified delay
- */
-export function delay(ms = 1000) {
-  return new Promise(resolve => {
-    setTimeout(resolve, ms);
-  });
-}
-
 // ============================================================
 // ROUTER CONFIGURATION - Define Application Routes
 // ============================================================

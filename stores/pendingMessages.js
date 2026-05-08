@@ -34,18 +34,24 @@ export const usePendingMessagesStore = defineStore("pendingMessages", () => {
         .map((message) => message.value?.clientId)
         .filter(Boolean)
     );
+    const confirmedFingerprints = new Set(
+      messages
+        .map((message) => {
+          const value = message.value;
+          return value?.chatId && value?.user && value?.content && value?.published
+            ? `${value.chatId}\u0000${value.user}\u0000${value.published}\u0000${value.content}`
+            : null;
+        })
+        .filter(Boolean)
+    );
 
     pendingMessages.value = pendingMessages.value.filter(
       (message) => {
         if (confirmedClientIds.has(message.clientId)) return false;
 
-        return !messages.some((confirmed) => {
-          const value = confirmed.value;
-          return value?.chatId === message.chatId
-            && value?.user === message.user
-            && value?.content === message.content
-            && value?.published === message.published;
-        });
+        return !confirmedFingerprints.has(
+          `${message.chatId}\u0000${message.user}\u0000${message.published}\u0000${message.content}`
+        );
       }
     );
   }

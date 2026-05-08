@@ -6,7 +6,15 @@ import { storeToRefs } from "pinia"
 
 function setup() {
   const userStore = useUserStore();
-  const {profileName, profileImageUrl, profileImageLoading, profileBio} = storeToRefs(userStore);
+  const {
+    profileName,
+    profileImageUrl,
+    profileImageLoading,
+    profileBio,
+    isProfileUpdating,
+    profileUpdateError,
+    profileUpdateSuccess,
+  } = storeToRefs(userStore);
 
   const editedName = ref("");
   const editedBio = ref("");
@@ -14,44 +22,46 @@ function setup() {
   const isSaving = ref(false);
   const saveError = ref(false);
   const saveSuccess = ref(false);
+  let saveSuccessTimer = null;
 
-  function delay(ms = 1000) {
-    return new Promise(resolve => {
-      setTimeout(resolve, ms);
-    });
+  function showSaveSuccess() {
+    saveSuccess.value = true;
+    clearTimeout(saveSuccessTimer);
+    saveSuccessTimer = setTimeout(() => {
+      saveSuccess.value = false;
+      saveSuccessTimer = null;
+    }, 1500);
   }
 
   // sync when store updates
   watch(profileName, (val) => {
-    editedName.value = val;
+    editedName.value = val ?? "";
   }, { immediate: true });
 
   watch(profileBio, (val) => {
-    editedBio.value = val;
+    editedBio.value = val ?? "";
   }, { immediate: true });
 
 
   async function saveChanges(){
 
-    if(!editedName.value) return
+    if(!editedName.value.trim()) return
 
     isSaving.value = true;
     saveError.value = false;
     saveSuccess.value = false;
     
     try{
-      await userStore.updateProfileName(editedName.value);
-      await userStore.updateProfileBio(editedBio.value);
+      await Promise.all([
+        userStore.updateProfileName(editedName.value),
+        userStore.updateProfileBio(editedBio.value ?? ""),
+      ]);
 
-
-      await delay();
-      saveSuccess.value = true;
-      setTimeout(() => {
-        saveSuccess.value = false;
-      }, 1500);
+      showSaveSuccess();
       
     }catch(e){
-      saveError.value = true
+      saveError.value = true;
+      console.error("Failed to save profile:", e);
     }finally{
       isSaving.value = false
     }
@@ -64,10 +74,14 @@ function setup() {
     profileImageLoading,
     profileBio,
     handleFileUpload: userStore.handleFileUpload,
+    isProfileUpdating,
+    profileUpdateError,
+    profileUpdateSuccess,
     saveChanges,
     editedName,
     editedBio,
     isSaving,
+    saveError,
     saveSuccess
     
   }

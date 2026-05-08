@@ -1,13 +1,11 @@
 
 import {storeToRefs} from 'pinia';
 import { useChatStore } from "../stores/chat.js";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed } from "vue";
 
 function setup(props) {
   const chatStore = useChatStore();
   const { activeChatId } = storeToRefs(chatStore);
-  const now = ref(Date.now());
-  let timer = null;
 
   const latestMessageText = computed(() => {
     if (!props.latestMessage) return "No messages yet";
@@ -19,7 +17,7 @@ function setup(props) {
     const published = props.latestMessage?.published;
     if (!published) return "";
 
-    const seconds = Math.max(0, Math.floor((now.value - published) / 1000));
+    const seconds = Math.max(0, Math.floor((props.now - published) / 1000));
     if (seconds < 5) return "now";
     if (seconds < 60) return `${seconds}s ago`;
 
@@ -41,16 +39,6 @@ function setup(props) {
     });
   });
 
-  onMounted(() => {
-    timer = setInterval(() => {
-      now.value = Date.now();
-    }, 30000);
-  });
-
-  onBeforeUnmount(() => {
-    if (timer) clearInterval(timer);
-  });
-  
   return {
     activeChatId,
     latestMessageText,
@@ -59,7 +47,7 @@ function setup(props) {
 }
 
 export default async () => ({
-  props: ["chatId", 'chatName', 'chatImageUrl', 'isChatImageLoading', 'previewMembers', 'hasUnread', 'latestMessage'],
+  props: ["chatId", 'chatName', 'chatImageUrl', 'isChatImageLoading', 'previewMembers', 'hasUnread', 'latestMessage', 'isMessagePreviewLoading', 'now'],
   setup,
   template: await fetch(new URL("./chatListItem.html", import.meta.url)).then((r) =>
     r.text(),

@@ -86,8 +86,21 @@ export const useUserStore = defineStore("user", () => {
   // Convert raw URL to object URL for browser display
   const profileImageUrl = ref();
   const profileImageLoading = ref(false);
+  const isProfileUpdating = ref(false);
+  const profileUpdateError = ref(false);
+  const profileUpdateSuccess = ref(false);
   let currentObjectUrl = null;
   let profileImageRequest = 0;
+  let profileSuccessTimer = null;
+
+  function showProfileUpdateSuccess() {
+    profileUpdateSuccess.value = true;
+    clearTimeout(profileSuccessTimer);
+    profileSuccessTimer = setTimeout(() => {
+      profileUpdateSuccess.value = false;
+      profileSuccessTimer = null;
+    }, 1500);
+  }
 
   // Cleanup function for memory management
   const cleanupProfileImage = () => {
@@ -189,10 +202,10 @@ export const useUserStore = defineStore("user", () => {
   async function updateProfileName(name) {
     // Trim whitespace and validate input
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!session.value?.actor || !trimmed) return false;
 
     // Post profile name update to Graffiti
-    graffiti.post({
+    await graffiti.post({
       value: {
         user: session.value.actor,
         action: 'ProfileName',
@@ -202,6 +215,8 @@ export const useUserStore = defineStore("user", () => {
       channels: [`user:${session.value.actor}:Activities`],
     },
     session.value);
+
+    return true;
   }
 
   /**
@@ -210,6 +225,8 @@ export const useUserStore = defineStore("user", () => {
    * @param {File} file - Image file to upload
    */
   async function updateProfileImage(file) {
+    if (!session.value?.actor || !file) return false;
+
     // Upload image to Graffiti and get media URL
     const mediaUrl = await graffiti.postMedia(
       {
@@ -221,7 +238,7 @@ export const useUserStore = defineStore("user", () => {
     const oldUrl = profileImageRawUrl.value;
 
     // Post profile image update to Graffiti
-    graffiti.post({
+    await graffiti.post({
       value: {
         user: session.value.actor,
         action: 'ProfileImage',
@@ -240,6 +257,8 @@ export const useUserStore = defineStore("user", () => {
         console.log("Failed to delete old image:", e);
       }
     }
+
+    return true;
   }
 
   /**
@@ -248,17 +267,22 @@ export const useUserStore = defineStore("user", () => {
    * @param {string} content - New bio text
    */
   async function updateProfileBio(content) {
+    if (!session.value?.actor) return false;
+    const normalizedContent = content ?? "";
+
     // Post profile bio update to Graffiti
-    graffiti.post({
+    await graffiti.post({
       value: {
         user: session.value.actor,
         action: 'ProfileBio',
-        content: content,
+        content: normalizedContent,
         published: Date.now(),
       },
       channels: [`user:${session.value.actor}:Activities`],
     },
     session.value);
+
+    return true;
   }
 
   /**
@@ -268,13 +292,27 @@ export const useUserStore = defineStore("user", () => {
    */
   async function handleFileUpload(event) {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) return false;
 
-    // Upload the selected image
-    await updateProfileImage(file);
+    isProfileUpdating.value = true;
+    profileUpdateError.value = false;
+    profileUpdateSuccess.value = false;
 
-    // Clear input for future uploads
-    event.target.value = "";
+    try {
+      // Upload the selected image
+      const success = await updateProfileImage(file);
+      if (success) showProfileUpdateSuccess();
+      return success;
+    } catch (err) {
+      profileUpdateError.value = true;
+      console.error("Failed to update profile image:", err);
+      return false;
+    } finally {
+      isProfileUpdating.value = false;
+
+      // Clear input for future uploads
+      event.target.value = "";
+    }
   }
 
   // ============================================================
@@ -292,6 +330,9 @@ export const useUserStore = defineStore("user", () => {
     profileImageUrl,
     profileImageLoading,
     profileBio,
+    isProfileUpdating,
+    profileUpdateError,
+    profileUpdateSuccess,
 
     // Profile update actions
     updateProfileName,

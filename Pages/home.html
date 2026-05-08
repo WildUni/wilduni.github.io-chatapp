@@ -91,16 +91,36 @@
                     }"
                 >
                     <wa-skeleton
-                        v-if="item.showAvatar && activeChatImageLoading"
+                        v-if="item.showAvatar && activeChatAvatar.type === 'loading'"
                         slot="start"
-                        effect="sheen"
+                        effect="pulse"
                         class="chat-header-avatar-skeleton"
                     ></wa-skeleton>
+                    <wa-avatar
+                        v-else-if="item.showAvatar && activeChatAvatar.type === 'image'"
+                        slot="start"
+                        label="Chat image"
+                        :image.prop="activeChatAvatar.imageUrl"
+                        class="chat-header-avatar"
+                    ></wa-avatar>
+                    <span
+                        v-else-if="item.showAvatar && activeChatAvatar.type === 'members'"
+                        slot="start"
+                        class="chat-header-member-stack"
+                        aria-label="Chat members"
+                    >
+                        <wa-avatar
+                            v-for="member in activeChatAvatar.members"
+                            :key="member.user"
+                            label="Member avatar"
+                            :image.prop="member.profile.avatarUrl || ''"
+                            class="chat-header-member-avatar"
+                        ></wa-avatar>
+                    </span>
                     <wa-avatar
                         v-else-if="item.showAvatar"
                         slot="start"
                         label="Chat image"
-                        :image.prop="activeChatImageUrl || ''"
                         class="chat-header-avatar"
                     ></wa-avatar>
                     <span class="chat-breadcrumb-name">{{ item.displayName }}</span>
@@ -175,25 +195,25 @@
         <div class="chat-info-column">
             <div class="chat-info-hero">
                 <wa-skeleton
-                    v-if="activeChatImageLoading"
-                    effect="sheen"
+                    v-if="activeChatAvatar.type === 'loading'"
+                    effect="pulse"
                     class="chat-info-hero-skeleton"
                 ></wa-skeleton>
 
                 <wa-avatar
-                    v-else-if="activeChatImageUrl"
+                    v-else-if="activeChatAvatar.type === 'image'"
                     label="Chat image"
-                    :image.prop="activeChatImageUrl"
+                    :image.prop="activeChatAvatar.imageUrl"
                     class="chat-info-hero-avatar"
                 ></wa-avatar>
 
                 <div
-                    v-else-if="previewMembers.length"
+                    v-else-if="activeChatAvatar.type === 'members'"
                     class="chat-info-member-stack"
                     aria-label="Chat members"
                 >
                     <wa-avatar
-                        v-for="member in previewMembers"
+                        v-for="member in activeChatAvatar.members"
                         :key="member.user"
                         label="Member avatar"
                         :image.prop="member.profile.avatarUrl || ''"

@@ -7,7 +7,7 @@
     <div class="avatar" :class="{ 'avatar-placeholder': !showAvatar }">
         <wa-skeleton
             v-if="showAvatar && avatarIsLoading"
-            effect="sheen"
+            effect="pulse"
             class="message-avatar-skeleton"
         ></wa-skeleton>
         <button

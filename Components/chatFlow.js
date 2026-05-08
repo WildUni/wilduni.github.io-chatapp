@@ -317,8 +317,12 @@ function setup() {
   function scrollToMessage(messageId) {
     if (!messageId) return;
 
-    const messageElement = [...document.querySelectorAll(".chatflow-message-item")]
-      .find(element => element.dataset.messageId === messageId);
+    const escapedMessageId = window.CSS?.escape
+      ? window.CSS.escape(messageId)
+      : messageId.replace(/["\\]/g, "\\$&");
+    const messageElement = document.querySelector(
+      `.chatflow-message-item[data-message-id="${escapedMessageId}"]`
+    );
 
     if (!messageElement) return;
 
@@ -330,9 +334,9 @@ function setup() {
     messageElement.classList.remove("reply-jump-highlight");
     requestAnimationFrame(() => {
       messageElement.classList.add("reply-jump-highlight");
-      setTimeout(() => {
+      messageElement.addEventListener("animationend", () => {
         messageElement.classList.remove("reply-jump-highlight");
-      }, 1200);
+      }, { once: true });
     });
   }
 
@@ -375,8 +379,6 @@ function setup() {
       forceScrollToBottom();
       requestAnimationFrame(forceScrollToBottom);
     });
-
-    setTimeout(forceScrollToBottom, 100);
   }
 
   watch(
@@ -410,8 +412,9 @@ function setup() {
       activeChatId.value,
       chatMessages.value.reduce((latest, msg) => Math.max(latest, msg.value.published ?? 0), 0),
     ],
-    ([chatId, latestMessageAt]) => {
+    ([chatId, latestMessageAt], [previousChatId, previousLatestMessageAt] = []) => {
       if (chatId && latestMessageAt) {
+        if (chatId === previousChatId && latestMessageAt === previousLatestMessageAt) return;
         chatStore.markChatRead(chatId);
       }
     },

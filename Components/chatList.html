@@ -1,9 +1,9 @@
 <ul v-if="isChatListLoading" class="chat-list-skeleton" aria-label="Loading chats">
     <li v-for="index in 5" :key="index" class="chat-list-skeleton-item">
-        <wa-skeleton effect="sheen" class="chat-list-skeleton-avatar"></wa-skeleton>
+        <wa-skeleton effect="pulse" class="chat-list-skeleton-avatar"></wa-skeleton>
         <div class="chat-list-skeleton-copy">
-            <wa-skeleton effect="sheen" class="chat-list-skeleton-title"></wa-skeleton>
-            <wa-skeleton effect="sheen" class="chat-list-skeleton-subtitle"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="chat-list-skeleton-title"></wa-skeleton>
+            <wa-skeleton effect="pulse" class="chat-list-skeleton-subtitle"></wa-skeleton>
         </div>
     </li>
 </ul>
@@ -18,6 +18,8 @@
             :preview-members="chatPreviewMembersByChatId[chat.value.chatId] || []"
             :hasUnread="hasUnreadByRootChatId[chat.value.chatId]"
             :latest-message="latestMessageByRootChatId[chat.value.chatId]"
+            :is-message-preview-loading="!areChatMessagesReady"
+            :now="now"
             @click="emitUpdateChat(chat.value.chatId, chat.value.displayChatName, chat.value.chatId, chat.value.chatId)"
         ></ChatListItem>
     </li>

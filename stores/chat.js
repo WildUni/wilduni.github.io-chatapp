@@ -68,6 +68,21 @@ export const useChatStore = defineStore("chat", () => {
   const replyTarget = ref(null);
   const mentionRequest = ref(null);
   let currentChatImageObjectUrl = null;
+  const successTimers = {
+    create: null,
+    join: null,
+    leave: null,
+    rename: null,
+  };
+
+  function setTimedSuccess(flag, key) {
+    flag.value = true;
+    clearTimeout(successTimers[key]);
+    successTimers[key] = setTimeout(() => {
+      flag.value = false;
+      successTimers[key] = null;
+    }, 1500);
+  }
 
   // ============================================================
   // ACTIONS - Create New Chat
@@ -171,10 +186,7 @@ export const useChatStore = defineStore("chat", () => {
       await Promise.all(postOperations);
 
       // Show success message and clear input
-      createSuccess.value = true;
-      setTimeout(() => {
-        createSuccess.value = false;
-      }, 1500);
+      setTimedSuccess(createSuccess, "create");
 
       newChatName.value = "";
 
@@ -268,10 +280,7 @@ export const useChatStore = defineStore("chat", () => {
         activeChatName.value = trimmedName;
       }
 
-      renameSuccess.value = true;
-      setTimeout(() => {
-        renameSuccess.value = false;
-      }, 1500);
+      setTimedSuccess(renameSuccess, "rename");
     } catch (err) {
       renameError.value = true;
     } finally {
@@ -498,13 +507,21 @@ export const useChatStore = defineStore("chat", () => {
     );
   });
 
+  const isBaseChatListLoading = computed(() => {
+    return session.value === undefined || isMembershipFirstPoll.value;
+  });
+
+  const shouldLoadChatNames = computed(() => {
+    return session.value && !isBaseChatListLoading.value && joinedChatList.value.length > 0;
+  });
+
   const allMembershipChannels = computed(() => {
-    return session.value
+    return shouldLoadChatNames.value
       ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Membership`)
       : [];
   });
 
-  const { objects: allMembershipActivities } = useGraffitiDiscover(
+  const { objects: allMembershipActivities, isFirstPoll: isAllMembershipFirstPoll } = useGraffitiDiscover(
     allMembershipChannels,
     {
       properties: {
@@ -614,6 +631,17 @@ export const useChatStore = defineStore("chat", () => {
     return ownActor ? getProfileName(ownActor) : 'Untitled chat';
   }
 
+  const areChatNamesReady = computed(() => {
+    if (isBaseChatListLoading.value) return false;
+    if (joinedChatList.value.length === 0) return true;
+
+    return joinedChatList.value.every((chat) => {
+      if (chat.value.chatName) return true;
+      if (!shouldLoadChatNames.value) return false;
+      return !isAllMembershipFirstPoll.value;
+    });
+  });
+
   const chatList = computed(() => {
     return joinedChatList.value.map(chat => ({
       ...chat,
@@ -629,12 +657,8 @@ export const useChatStore = defineStore("chat", () => {
     });
   });
 
-  const isChatListLoading = computed(() => {
-    return session.value === undefined || isMembershipFirstPoll.value;
-  });
-
   const chatActivityChannels = computed(() => {
-    return session.value
+    return session.value && areChatNamesReady.value
       ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Activities`)
       : [];
   });
@@ -684,29 +708,42 @@ export const useChatStore = defineStore("chat", () => {
       const nextUrls = {};
       const nextLoading = {};
       const activeUrls = new Set();
+      const imagesToLoad = [];
 
       for (const [chatId, image] of Object.entries(imagesByChat)) {
         activeUrls.add(image.url);
 
         if (!chatImageObjectUrls.has(image.url)) {
           nextLoading[chatId] = true;
-          if (run === chatImageLoadRun) {
-            chatImageLoadingByChat.value = {
-              ...chatImageLoadingByChat.value,
-              [chatId]: true,
-            };
-          }
-          try {
-            const blob = await graffiti.getMedia(image.url, session.value);
-            chatImageObjectUrls.set(image.url, URL.createObjectURL(blob.data));
-          } catch (err) {
-            console.error("Failed to load chat list image:", err);
-            chatImageObjectUrls.set(image.url, null);
-          }
+          imagesToLoad.push([chatId, image.url]);
         }
 
         nextUrls[chatId] = chatImageObjectUrls.get(image.url);
         nextLoading[chatId] = false;
+      }
+
+      if (imagesToLoad.length > 0) {
+        if (run === chatImageLoadRun) {
+          chatImageLoadingByChat.value = {
+            ...chatImageLoadingByChat.value,
+            ...Object.fromEntries(imagesToLoad.map(([chatId]) => [chatId, true])),
+          };
+        }
+
+        await Promise.all(
+          imagesToLoad.map(async ([chatId, url]) => {
+            try {
+              const blob = await graffiti.getMedia(url, session.value);
+              chatImageObjectUrls.set(url, URL.createObjectURL(blob.data));
+            } catch (err) {
+              console.error("Failed to load chat list image:", err);
+              chatImageObjectUrls.set(url, null);
+            }
+
+            nextUrls[chatId] = chatImageObjectUrls.get(url);
+            nextLoading[chatId] = false;
+          })
+        );
       }
 
       for (const [url, objectUrl] of chatImageObjectUrls.entries()) {
@@ -723,98 +760,13 @@ export const useChatStore = defineStore("chat", () => {
     },
     { immediate: true }
   );
-
-  const allDescendantChannels = computed(() => {
-    return session.value
-      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Descendants`)
+  const messageChannels = computed(() => {
+    return session.value && areChatNamesReady.value
+      ? joinedChatList.value.map(chat => `chat:${chat.value.chatId}:Messages`)
       : [];
   });
 
-  const { objects: allDescendantActivities } = useGraffitiDiscover(
-    allDescendantChannels,
-    {
-      properties: {
-        value: {
-          required: ['action', 'chatId', 'name', 'published', 'parentChatId', 'rootChatId'],
-          properties: {
-            action: { type: 'string' },
-            chatId: { type: 'string' },
-            name: { type: 'string' },
-            published: { type: 'number' },
-            parentChatId: { type: 'string' },
-            rootChatId: { type: 'string' },
-          }
-        }
-      },
-    },
-    session,
-    true
-  );
-
-  const activeBranchesByChatId = computed(() => {
-    return allDescendantActivities.value.reduce((acc, obj) => {
-      const v = obj.value;
-
-      if (
-        (v.action !== 'Create' && v.action !== 'Rename' && v.action !== 'Delete') ||
-        !v.chatId ||
-        !v.parentChatId ||
-        !v.rootChatId ||
-        !v.published
-      ) {
-        return acc;
-      }
-
-      const existing = acc[v.chatId];
-
-      if (!existing || existing.value.published < v.published) {
-        acc[v.chatId] = {
-          ...obj,
-          value: {
-            ...existing?.value,
-            ...v,
-          },
-        };
-      }
-
-      return acc;
-    }, {});
-  });
-
-  const branchIdsByRootChatId = computed(() => {
-    const branchesByRoot = {};
-
-    for (const chat of joinedChatList.value) {
-      branchesByRoot[chat.value.chatId] = new Set([chat.value.chatId]);
-    }
-
-    for (const branch of Object.values(activeBranchesByChatId.value)) {
-      const { action, chatId, rootChatId } = branch.value;
-
-      if (action === 'Delete' || !branchesByRoot[rootChatId]) continue;
-
-      branchesByRoot[rootChatId].add(chatId);
-    }
-
-    return Object.fromEntries(
-      Object.entries(branchesByRoot).map(([rootChatId, branchIds]) => [
-        rootChatId,
-        [...branchIds],
-      ])
-    );
-  });
-
-  const messageChannels = computed(() => {
-    if (!session.value) return [];
-
-    const branchIds = new Set(
-      Object.values(branchIdsByRootChatId.value).flat()
-    );
-
-    return [...branchIds].map(chatId => `chat:${chatId}:Messages`);
-  });
-
-  const { objects: allChatMessages } = useGraffitiDiscover(
+  const { objects: allChatMessages, isFirstPoll: isAllChatMessagesFirstPoll } = useGraffitiDiscover(
     messageChannels,
     {
       properties: {
@@ -872,14 +824,7 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   const latestActivityAtByRootChatId = computed(() => {
-    return Object.entries(branchIdsByRootChatId.value).reduce((acc, [rootChatId, branchIds]) => {
-      const latestBranchMessageAt = branchIds.reduce((latest, branchId) => {
-        return Math.max(latest, latestMessageAtByChatId.value[branchId] ?? 0);
-      }, 0);
-
-      acc[rootChatId] = latestBranchMessageAt;
-      return acc;
-    }, {});
+    return latestMessageAtByChatId.value;
   });
 
   watch(
@@ -889,23 +834,14 @@ export const useChatStore = defineStore("chat", () => {
   );
 
   const latestMessageByRootChatId = computed(() => {
-    const rootByBranchId = Object.entries(branchIdsByRootChatId.value).reduce(
-      (acc, [rootChatId, branchIds]) => {
-        for (const branchId of branchIds) acc[branchId] = rootChatId;
-        return acc;
-      },
-      {}
-    );
-
     return allChatMessages.value.reduce((acc, obj) => {
       const chatId = getMessageChatId(obj);
-      const rootChatId = rootByBranchId[chatId];
       const { content, published, user } = obj.value;
 
-      if (!rootChatId || !content || !published || !user) return acc;
+      if (!chatId || !content || !published || !user) return acc;
 
-      if (!acc[rootChatId] || acc[rootChatId].published < published) {
-        acc[rootChatId] = {
+      if (!acc[chatId] || acc[chatId].published < published) {
+        acc[chatId] = {
           content,
           published,
           user,
@@ -960,12 +896,16 @@ export const useChatStore = defineStore("chat", () => {
   });
 
   const hasUnreadByRootChatId = computed(() => {
-    return Object.fromEntries(
-      Object.entries(branchIdsByRootChatId.value).map(([rootChatId, branchIds]) => [
-        rootChatId,
-        branchIds.some(branchId => hasUnreadByChatId.value[branchId]),
-      ])
-    );
+    return hasUnreadByChatId.value;
+  });
+
+  const areChatMessagesReady = computed(() => {
+    return joinedChatList.value.length === 0 ||
+      (areChatNamesReady.value && !isAllChatMessagesFirstPoll.value);
+  });
+
+  const isChatListLoading = computed(() => {
+    return isBaseChatListLoading.value || !areChatNamesReady.value;
   });
 
   async function markChatRead(chatId) {
@@ -1010,29 +950,27 @@ export const useChatStore = defineStore("chat", () => {
 
 
   // ============================================================
-  // UTILITY - Wait for Graffiti Activities with Timeout
+  // UTILITY - Wait for Graffiti Activities
   // ============================================================
   
   /**
-   * Helper to wait for activities to populate with a timeout
-   * Prevents infinite waiting for data that may not load
+   * Helper to wait for activities to populate or finish their first poll.
    * @param {Array} activities - Reactive activities array to monitor
-   * @param {number} timeout - Milliseconds to wait before resolving empty
+   * @param {Ref<boolean>} isFirstPoll - Whether Graffiti is still loading initial data
    * @returns {Promise<Array>} Resolves with activities or empty array
    */
-  function waitForActivities(activities, timeout = 2000) {
+  function waitForActivities(activities, isFirstPoll) {
     return new Promise(resolve => {
-      const stop = watch(activities, (val) => {
-        if (val.length > 0) {
-          stop();
-          resolve(val);
-        }
-      }, { immediate: true });
-
-      const timer = setTimeout(() => {
-        stop();
-        resolve([]);
-      }, timeout);
+      const stop = watch(
+        () => [activities.value, isFirstPoll.value],
+        ([val, firstPoll]) => {
+          if (val.length > 0 || !firstPoll) {
+            stop();
+            resolve(val);
+          }
+        },
+        { immediate: true }
+      );
     });
   }
 
@@ -1043,17 +981,14 @@ export const useChatStore = defineStore("chat", () => {
    * @returns {Object|null} Latest chat creation object or null
    */
   function findLatestCreateAction(activities) {
-    return activities.reduce((latest, obj) => {
+    const latestActivity = activities.reduce((latest, obj) => {
       if (!latest || latest.value.published < obj.value.published) {
         return obj;
       }
       return latest;
-    }, null)?.value.action !== 'Delete' ? activities.reduce((latest, obj) => {
-      if (!latest || latest.value.published < obj.value.published) {
-        return obj;
-      }
-      return latest;
-    }, null) : null;
+    }, null);
+
+    return latestActivity?.value.action !== 'Delete' ? latestActivity : null;
   }
 
   // ============================================================
@@ -1076,7 +1011,7 @@ export const useChatStore = defineStore("chat", () => {
 
     try {
       // Check if chat exists by querying its activity log
-      const { objects: activities } = useGraffitiDiscover(
+      const { objects: activities, isFirstPoll } = useGraffitiDiscover(
         () => [`chat:${joinChatId.value}:Activities`],
         {
           properties: {
@@ -1097,8 +1032,8 @@ export const useChatStore = defineStore("chat", () => {
         true
       );
 
-      // Wait for activities to load, with fallback timeout
-      const acts = await waitForActivities(activities);
+      // Wait until activities load or the first poll confirms there are none.
+      const acts = await waitForActivities(activities, isFirstPoll);
       const chat = findLatestCreateAction(acts);
 
       if (chat != null) {
@@ -1138,10 +1073,7 @@ export const useChatStore = defineStore("chat", () => {
         ]);
 
         // Show success and clear input
-        joinSuccess.value = true;
-        setTimeout(() => {
-          joinSuccess.value = false;
-        }, 1500);
+        setTimedSuccess(joinSuccess, "join");
         joinChatId.value = '';
       } else {
         // Chat doesn't exist or was deleted
@@ -1219,10 +1151,7 @@ export const useChatStore = defineStore("chat", () => {
       }
 
       // Show success message
-      leaveSuccess.value = true;
-      setTimeout(() => {
-        leaveSuccess.value = false;
-      }, 1500);
+      setTimedSuccess(leaveSuccess, "leave");
     } catch (err) {
       leaveError.value = true;
     } finally {
@@ -1257,6 +1186,7 @@ export const useChatStore = defineStore("chat", () => {
     hasUnreadByChatId,
     hasUnreadByRootChatId,
     latestMessageByRootChatId,
+    areChatMessagesReady,
     markChatRead,
     setReplyTarget,
     clearReplyTarget,

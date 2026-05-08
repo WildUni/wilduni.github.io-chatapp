@@ -2,7 +2,7 @@
   :class="{ selected: chatId === activeChatId }">
   <wa-skeleton
     v-if="isChatImageLoading"
-    effect="sheen"
+    effect="pulse"
     class="chat-list-avatar-skeleton"
   ></wa-skeleton>
   <wa-avatar
@@ -34,7 +34,13 @@
   ></span>
   <div class="chatListItem-wrapper">
     <div class="chatListItem-name fade-text">{{chatName}}</div>
-    <div class="chatListItem-preview-row">
+    <div v-if="isMessagePreviewLoading" class="chatListItem-preview-row">
+      <wa-skeleton
+        effect="pulse"
+        class="chat-list-preview-skeleton"
+      ></wa-skeleton>
+    </div>
+    <div v-else class="chatListItem-preview-row">
       <span class="chatListItem-preview fade-text">{{ latestMessageText }}</span>
       <span v-if="latestMessageAge" class="chatListItem-time">{{ latestMessageAge }}</span>
     </div>

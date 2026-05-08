@@ -16,9 +16,6 @@ import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
 import { useProfileCacheStore } from "../stores/profileCache.js";
 
-import { delay } from "../index.js";
-
-
 function setup() {
   const route = useRoute()
   const router = useRouter()
@@ -234,6 +231,38 @@ function setup() {
 
   const previewMembers = computed(() => infoMembers.value.slice(0, 4));
 
+  const activeChatAvatar = computed(() => {
+    if (activeChatImageLoading.value) {
+      return {
+        type: "loading",
+        imageUrl: null,
+        members: [],
+      };
+    }
+
+    if (activeChatImageUrl.value) {
+      return {
+        type: "image",
+        imageUrl: activeChatImageUrl.value,
+        members: [],
+      };
+    }
+
+    if (previewMembers.value.length > 0) {
+      return {
+        type: "members",
+        imageUrl: null,
+        members: previewMembers.value,
+      };
+    }
+
+    return {
+      type: "empty",
+      imageUrl: null,
+      members: [],
+    };
+  });
+
   const branchMap = computed(() => {
     return branchActivities.value.reduce((acc, obj) => {
       const v = obj.value;
@@ -389,7 +418,6 @@ function setup() {
    */
   async function leaveActiveChat(chatId) {
     await chatStore.leaveChat(chatId);
-    await delay();
     router.push({ name: "home" });
   }
 
@@ -472,7 +500,6 @@ function setup() {
       if (success) {
         branchName.value = "";
         branchParent.value = null;
-        await delay();
         const drawer = document.querySelector("#create-branch-drawer");
         if (drawer) drawer.open = false;
       }
@@ -578,8 +605,7 @@ function setup() {
     activeChatRootId,
     activeChatParentId,
     activeChatRootName,
-    activeChatImageUrl,
-    activeChatImageLoading,
+    activeChatAvatar,
     infoMembers,
     previewMembers,
     activeNavigationTab,

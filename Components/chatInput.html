@@ -20,8 +20,11 @@
     with-clear 
     :value='myMessage' 
     @input="myMessage = $event.target.value"
-    @keydown.enter="sendMessage" 
+    @keydown.enter="sendMessage"
+    :disabled.prop="isSending"
     class="message-input"></wa-input>
-    <button @click="sendMessage" :disabled="!myMessage.length">Send</button>
+    <button @click="sendMessage" :disabled="!myMessage.length || isSending">
+        {{ isSending ? "Sending..." : "Send" }}
+    </button>
 </div>
 <p v-if="sendError" class="error">{{ sendError }}</p>

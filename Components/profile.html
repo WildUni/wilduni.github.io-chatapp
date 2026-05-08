@@ -4,7 +4,7 @@
     <div slot="start">
         <wa-skeleton
             v-if="profileImageLoading"
-            effect="sheen"
+            effect="pulse"
             class="profile-pill-avatar-skeleton"
         ></wa-skeleton>
         <wa-avatar
@@ -27,26 +27,37 @@
 
 <wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
     <div class="profile-wrapper" >
-        <label class="profile-image-upload" title="Upload a Profile Picture">
-            <wa-skeleton
-                v-if="profileImageLoading"
-                effect="sheen"
-                class="profile-image-skeleton"
-            ></wa-skeleton>
-            <wa-avatar
-                v-else
-                label="User avatar"
-                :image.prop="profileImageUrl || ''"
-                class="profile-image"
-            ></wa-avatar>
+        <div class="profile-image-column">
+            <label class="profile-image-upload" title="Upload a Profile Picture">
+                <wa-skeleton
+                    v-if="profileImageLoading"
+                    effect="pulse"
+                    class="profile-image-skeleton"
+                ></wa-skeleton>
+                <wa-avatar
+                    v-else
+                    label="User avatar"
+                    :image.prop="profileImageUrl || ''"
+                    class="profile-image"
+                ></wa-avatar>
 
-            <input
-                type="file"
-                accept="image/*"
-                @change="handleFileUpload"
-                class="profile-image-input"
-            />
-        </label>
+                <input
+                    type="file"
+                    accept="image/*"
+                    @change="handleFileUpload"
+                    :disabled="isProfileUpdating"
+                    class="profile-image-input"
+                />
+            </label>
+            <div
+                v-if="isProfileUpdating || profileUpdateSuccess"
+                class="profile-image-feedback"
+            >
+                <wa-spinner v-if="isProfileUpdating"></wa-spinner>
+                <wa-icon name="check" v-if="profileUpdateSuccess"></wa-icon>
+                {{ isProfileUpdating ? "Uploading..." : "Image Saved" }}
+            </div>
+        </div>
 
 
         <div class="profile-info-wrapper">
@@ -60,10 +71,12 @@
             </div>
         </div>
     </div>
+    <p v-if="profileUpdateError" class="form-error">Profile image update failed. Please try again.</p>
+    <p v-if="saveError" class="form-error">Profile save failed. Please try again.</p>
     <div class="profile-footer">
         <wa-button :variant="saveSuccess ? 'success' : 'brand'"
             @click="saveChanges" 
-            :disabled.prop ='(profileName===editedName && profileBio===editedBio)||isSaving'>
+            :disabled.prop ='(profileName===editedName && (profileBio || "")===editedBio)||isSaving||isProfileUpdating'>
             <wa-spinner v-if="isSaving"></wa-spinner>
             <wa-icon name="check" v-if="saveSuccess"></wa-icon>
             {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
