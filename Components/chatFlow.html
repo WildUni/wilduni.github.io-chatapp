@@ -24,53 +24,63 @@
     </div>
 </div>
 
-<div v-else-if="messagesWithProfiles.length">
+<div v-else-if="chatItems.length">
     <ul class='chatflow-wrapper'>
         <li
-            v-for="msg in messagesWithProfiles"
-            :key="msg.url || `${msg.value.user}-${msg.value.published}`"
+            v-for="item in chatItems"
+            :key="item.key"
             class="chatflow-message-item"
-            :data-message-id="msg.messageId"
+            :class="{ 'chatflow-system-item': item.itemType === 'recallSummary' }"
+            :data-message-id="item.itemType === 'message' ? item.message.messageId : item.key"
         > 
-            <div v-if="msg.isFirstInTimeChunk" class="chatflow-timestamp">
-                {{ formatMessageTimestamp(msg.value.published) }}
+            <div v-if="item.isFirstInTimeChunk" class="chatflow-timestamp">
+                {{ formatMessageTimestamp(item.published) }}
+            </div>
+            <div v-if="item.itemType === 'recallSummary'" class="chatflow-system-bubble">
+                {{ item.username }} recalled {{ item.count }} {{ item.count === 1 ? "message" : "messages" }}.
             </div>
             <div
+                v-else
                 class="chatflow-message-row"
                 :class="{ 'show-time-column': showTimestampColumn }"
             >
                 <div class="chatflow-message-lane">
-                    <Message :username="msg.profile?.name" 
-                    :profile-bio="msg.profile?.bio"
-                    :profile-pronouns="msg.profile?.pronouns"
-                    :message-content="msg.value.content" 
-                    :media-attachments="msg.value.media || []"
-                    :avatarUrl="msg.profile?.avatarUrl" 
-                    :avatar-is-loading="msg.profile?.avatarIsLoading"
-                    :published="msg.value.published"
-                    :is-own-message="msg.value.user === session?.actor"
-                    :show-name="msg.isFirstInChunk"
-                    :show-avatar="msg.isLastInChunk"
-                    :is-pending="msg.isPending"
-                    :pending-status="msg.pendingStatus"
-                    :message-id="msg.messageId"
-                    :like-count="msg.likeCount"
-                    :is-liked="msg.isLikedByCurrentUser"
-                    :is-pinned="msg.isPinned"
-                    :reply-to="msg.value.replyTo"
-                    :reply-to-content="msg.value.replyToContent"
-                    @toggle-like="toggleLike(msg)"
-                    @toggle-pin="togglePin(msg)"
-                    @reply="replyToMessage(msg)"
-                    @mention-user="mentionUser(msg)"
-                    @open-reply="scrollToMessage(msg.value.replyTo)"/>
+                    <Message :username="item.message.profile?.name" 
+                    :profile-bio="item.message.profile?.bio"
+                    :profile-pronouns="item.message.profile?.pronouns"
+                    :message-content="item.message.displayContent" 
+                    :media-attachments="item.message.displayMedia || []"
+                    :avatarUrl="item.message.profile?.avatarUrl" 
+                    :avatar-is-loading="item.message.profile?.avatarIsLoading"
+                    :published="item.message.value.published"
+                    :is-own-message="item.message.value.user === session?.actor"
+                    :can-manage-message="item.message.value.user === session?.actor"
+                    :show-name="item.message.isFirstInChunk"
+                    :show-avatar="item.message.isLastInChunk"
+                    :is-pending="item.message.isPending"
+                    :pending-status="item.message.pendingStatus"
+                    :message-id="item.message.messageId"
+                    :like-count="item.message.likeCount"
+                    :is-liked="item.message.isLikedByCurrentUser"
+                    :is-pinned="item.message.isPinned"
+                    :is-edited="item.message.isEdited"
+                    :is-recalled="item.message.isRecalled"
+                    :reply-to="item.message.value.replyTo"
+                    :reply-to-content="item.message.value.replyToContent"
+                    @toggle-like="toggleLike(item.message)"
+                    @toggle-pin="togglePin(item.message)"
+                    @edit-message="editMessage(item.message)"
+                    @recall-message="recallMessage(item.message)"
+                    @reply="replyToMessage(item.message)"
+                    @mention-user="mentionUser(item.message)"
+                    @open-reply="scrollToMessage(item.message.value.replyTo)"/>
                 </div>
                 <div
                     v-if="showTimestampColumn"
                     class="chatflow-message-time"
-                    :title="formatMessageTimestamp(msg.value.published)"
+                    :title="formatMessageTimestamp(item.message.value.published)"
                 >
-                    {{ formatMessageTime(msg.value.published) }}
+                    {{ formatMessageTime(item.message.value.published) }}
                 </div>
             </div>
         </li>

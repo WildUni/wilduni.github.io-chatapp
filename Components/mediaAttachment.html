@@ -1,6 +1,6 @@
 <div
     class="media-attachment"
-    :class="{ 'media-attachment-compact': compact, 'media-attachment-error': loadError }"
+    :class="{ 'media-attachment-compact': compact, 'media-attachment-error': loadError, 'media-attachment-document': isPdf }"
     role="button"
     tabindex="0"
     :style="attachmentStyle"
@@ -32,12 +32,18 @@
         preload="metadata"
     ></video>
 
+    <div v-else-if="sourceUrl && isPdf" class="media-document-preview">
+        <wa-icon name="file-pdf"></wa-icon>
+        <span>{{ displayName }}</span>
+        <small v-if="displaySize">{{ displaySize }}</small>
+    </div>
+
     <div v-if="sourceUrl && isVideo && !isLoading" class="media-play-indicator" aria-hidden="true">
         <wa-icon name="play"></wa-icon>
     </div>
 
-    <div v-if="!isLoading && (!sourceUrl || (!isImage && !isVideo) || loadError)" class="media-attachment-fallback">
-        <wa-icon :name="isVideo ? 'video' : 'image'"></wa-icon>
+    <div v-if="!isLoading && (!sourceUrl || (!isImage && !isVideo && !isPdf) || loadError)" class="media-attachment-fallback">
+        <wa-icon :name="isPdf ? 'file-pdf' : isVideo ? 'video' : 'image'"></wa-icon>
         <span>{{ loadError ? "Could not load media" : displayName }}</span>
     </div>
 </div>
@@ -75,5 +81,28 @@
             controls
             playsinline
         ></video>
+
+        <div
+            v-else-if="sourceUrl && isPdf"
+            class="media-lightbox-content media-lightbox-document"
+        >
+            <div class="media-lightbox-document-header">
+                <wa-icon name="file-pdf"></wa-icon>
+                <span>{{ displayName }}</span>
+                <a
+                    :href="sourceUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.stop
+                >
+                    Open
+                </a>
+            </div>
+            <iframe
+                :src="sourceUrl"
+                :title="displayName"
+                class="media-lightbox-document-frame"
+            ></iframe>
+        </div>
     </div>
 </teleport>

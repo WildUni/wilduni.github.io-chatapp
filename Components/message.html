@@ -62,7 +62,7 @@
                 <wa-icon name="thumbtack"></wa-icon>
             </div>
             <button
-                v-if="replyToContent"
+                v-if="replyToContent && !isRecalled"
                 type="button"
                 class="message-reply-context"
                 title="Jump to replied message"
@@ -70,7 +70,10 @@
             >
                 {{ replyToContent }}
             </button>
-            <div v-if="messageContent" class="message-body-content">
+            <div v-if="isRecalled" class="message-state-note message-recalled-note">
+                This message was recalled.
+            </div>
+            <div v-else-if="messageContent" class="message-body-content">
                 <template v-for="(part, index) in linkifyText(messageContent)" :key="index">
                     <a
                         v-if="part.type === 'link'"
@@ -83,8 +86,11 @@
                     <span v-else>{{ part.text }}</span>
                 </template>
             </div>
+            <div v-if="isEdited && !isRecalled" class="message-state-note message-edited-note">
+                Edited
+            </div>
             <div
-                v-if="mediaAttachments?.length"
+                v-if="!isRecalled && mediaAttachments?.length"
                 class="message-media-grid"
                 :class="{ 'message-media-grid-single': mediaAttachments.length === 1 }"
             >
@@ -126,6 +132,27 @@
                     @click.stop="$emit('reply')"
                 >
                     <wa-icon name="reply"></wa-icon>
+                </wa-button>
+                <span v-if="canManageMessage && !isPending && !isRecalled" class="message-action-divider"></span>
+                <wa-button
+                    v-if="canManageMessage && !isPending && !isRecalled"
+                    appearance="plain"
+                    class="message-action-button"
+                    title="Edit message"
+                    aria-label="Edit message"
+                    @click.stop="requestEdit"
+                >
+                    <wa-icon name="pen-to-square"></wa-icon>
+                </wa-button>
+                <wa-button
+                    v-if="canManageMessage && !isPending && !isRecalled"
+                    appearance="plain"
+                    class="message-action-button message-action-danger"
+                    title="Recall message"
+                    aria-label="Recall message"
+                    @click.stop="recallMessage"
+                >
+                    <wa-icon name="rotate-left"></wa-icon>
                 </wa-button>
             </div>
         </wa-card>

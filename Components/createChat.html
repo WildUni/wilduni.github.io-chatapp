@@ -47,7 +47,7 @@
                 <p v-if="createError" class="form-error">Chat creation failed. Please try again.</p>
             </div>
 
-            <footer class="plain-modal-footer">
+            <footer class="plain-modal-footer create-join-modal-footer">
                 <wa-button
                     :variant="createSuccess ? 'success' : 'brand'"
                     @click="handleCreateChat"
@@ -91,7 +91,7 @@
                 <p v-if="joinError" class="form-error">Chat join failed. Please check the id and try again.</p>
             </div>
 
-            <footer class="plain-modal-footer">
+            <footer class="plain-modal-footer create-join-modal-footer">
                 <wa-button
                     :variant="joinSuccess ? 'success' : 'brand'"
                     @click="handleJoinChat"

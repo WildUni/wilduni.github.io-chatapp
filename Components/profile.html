@@ -2,7 +2,7 @@
 <section v-if="embedded" class="profile-embedded-page">
     <header class="profile-embedded-header">
         <h2>Profile</h2>
-        <button type="button" class="plain-secondary-button profile-logout-button" @click="$graffiti.logout($graffitiSession.value)">
+        <button type="button" class="plain-secondary-button profile-logout-button" @click="requestLogout">
             Log Out
         </button>
     </header>
@@ -83,6 +83,7 @@
 </section>
 
 <template v-else>
+<div class="profile-pill-shell">
 <wa-button appearance="filled" class="profile-pill" @click="showProfilePanel = true">
 
     <div slot="start">
@@ -108,6 +109,16 @@
         </div>
     </div>
 </wa-button>
+<wa-button
+    appearance="plain"
+    class="profile-pill-theme-toggle"
+    :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+    @click="toggleTheme"
+>
+    <wa-icon :name="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
+</wa-button>
+</div>
 
 <teleport to="body">
     <div
@@ -119,9 +130,6 @@
             <header class="plain-modal-header">
                 <h2 id="profile-title">Profile</h2>
                 <div class="profile-header-actions">
-                    <button type="button" class="plain-secondary-button profile-logout-button" @click="$graffiti.logout($graffitiSession.value)">
-                        Log Out
-                    </button>
                     <button
                         type="button"
                         class="plain-icon-button"
@@ -189,16 +197,9 @@
             </div>
 
             <footer class="plain-modal-footer profile-modal-footer">
-                <wa-button
-                    appearance="plain"
-                    class="profile-theme-toggle"
-                    :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-                    :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-                    @click="toggleTheme"
-                >
-                    <wa-icon :name="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
-                    {{ theme === "dark" ? "Light mode" : "Dark mode" }}
-                </wa-button>
+                <button type="button" class="plain-secondary-button profile-logout-button" @click="requestLogout">
+                    Log Out
+                </button>
                 <wa-button :variant="saveSuccess ? 'success' : 'brand'"
                     class="profile-save-button"
                     @click="saveChanges"
@@ -213,3 +214,39 @@
 </teleport>
 
 </template>
+
+<teleport to="body">
+    <div
+        v-if="showLogoutConfirm"
+        class="plain-modal-backdrop"
+        @click.self="cancelLogout"
+    >
+        <section class="plain-modal logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+            <header class="plain-modal-header">
+                <h2 id="logout-confirm-title">Log out?</h2>
+                <button
+                    type="button"
+                    class="plain-icon-button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="cancelLogout"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </button>
+            </header>
+
+            <div class="plain-modal-body">
+                <p class="logout-confirm-copy">You will need to log in again to send messages and update your profile.</p>
+            </div>
+
+            <footer class="plain-modal-footer logout-confirm-footer">
+                <button type="button" class="plain-secondary-button" @click="cancelLogout">
+                    Cancel
+                </button>
+                <wa-button variant="danger" @click="confirmLogout">
+                    Log Out
+                </wa-button>
+            </footer>
+        </section>
+    </div>
+</teleport>

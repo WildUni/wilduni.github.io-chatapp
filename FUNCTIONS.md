@@ -388,15 +388,17 @@ const objectUrl = await resolveAvatar('graffiti://media/xyz');
 
 **Side Effects:**
 - Sets `isSending`, `sendError` flags
+- Uploads selected image, video, and PDF attachments with `graffiti.postMedia()`
 - Posts message to `chat:{activeChatId}:Messages`
 - Clears `myMessage` on success
 
 **Validation:**
-- Message must not be empty (trims whitespace)
+- Message text or at least one attachment must be present
 - Chat must be active
+- PDF and video attachments must be 30 MB or smaller
 
 **Error Messages:**
-- "Message cannot be empty"
+- "Add a message or attach media"
 - "No active chat selected"
 - "Message failed to send. Please try again."
 

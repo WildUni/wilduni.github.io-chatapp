@@ -36,6 +36,10 @@
         <p v-if="joinError" class="form-error">Could not join this chat. Please check the link and try again.</p>
 
         <div class="join-actions">
+            <wa-button appearance="plain" @click="goHome">
+                Cancel
+            </wa-button>
+
             <wa-button
                 variant="brand"
                 @click="confirmJoin"
@@ -44,10 +48,6 @@
                 <wa-spinner v-if="isJoining"></wa-spinner>
                 <wa-icon name="right-to-bracket" v-else slot="start"></wa-icon>
                 {{ isJoining ? "Joining..." : chatExists ? "Join Chat" : "Chat Unavailable" }}
-            </wa-button>
-
-            <wa-button appearance="plain" @click="goHome">
-                Cancel
             </wa-button>
         </div>
     </section>

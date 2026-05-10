@@ -1,4 +1,4 @@
-import { nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -9,6 +9,7 @@ import { usePendingMessagesStore } from "../stores/pendingMessages.js";
 
 const MAX_ATTACHMENTS = 4;
 const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+const MAX_PDF_BYTES = 30 * 1024 * 1024;
 const IMAGE_TARGET_BYTES = 2.5 * 1024 * 1024;
 const IMAGE_MAX_EDGE = 1600;
 const COMPRESSIBLE_IMAGE_TYPES = new Set([
@@ -22,13 +23,63 @@ function setup() {
   const session = useGraffitiSession();
   const chatStore = useChatStore();
   const pendingMessagesStore = usePendingMessagesStore();
-  const { activeChatId, replyTarget, mentionRequest } = storeToRefs(chatStore);
+  const { activeChatId, replyTarget, editTarget, mentionRequest } = storeToRefs(chatStore);
 
   const myMessage = ref('');
   const messageInput = ref(null);
   const selectedMedia = ref([]);
   const isSending = ref(false);
   const sendError = ref("");
+  const composerTarget = computed(() => editTarget.value || replyTarget.value);
+  const isEditingMessage = computed(() => Boolean(editTarget.value));
+  const submitLabel = computed(() => {
+    if (isSending.value) return isEditingMessage.value ? "Saving..." : "Sending...";
+    return isEditingMessage.value ? "Save" : "Send";
+  });
+  const isSubmitDisabled = computed(() => {
+    if (isSending.value) return true;
+
+    const trimmedMessage = myMessage.value.trim();
+    if (isEditingMessage.value) {
+      return !trimmedMessage || trimmedMessage === (editTarget.value?.content || "").trim();
+    }
+
+    return !trimmedMessage && selectedMedia.value.length === 0;
+  });
+
+  function resizeMessageInput() {
+    const input = messageInput.value;
+    if (!input) return;
+
+    input.style.height = "auto";
+    const nextHeight = Math.min(input.scrollHeight, 160);
+    input.style.height = `${nextHeight}px`;
+    input.style.overflowY = input.scrollHeight > nextHeight ? "auto" : "hidden";
+  }
+
+  function handleMessageInput(event) {
+    myMessage.value = event.target.value;
+    resizeMessageInput();
+  }
+
+  function handleMessageKeydown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+
+    event.preventDefault();
+    sendMessage();
+  }
+
+  function clearComposerTarget() {
+    if (isEditingMessage.value) {
+      chatStore.clearEditTarget();
+      myMessage.value = "";
+      sendError.value = "";
+      nextTick(resizeMessageInput);
+      return;
+    }
+
+    chatStore.clearReplyTarget();
+  }
 
   function revokeSelectedMediaPreview(item) {
     if (item?.previewUrl) {
@@ -52,7 +103,14 @@ function setup() {
   function getMediaKind(file) {
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) return "pdf";
     return null;
+  }
+
+  function getAttachmentLabel(type) {
+    if (type === "video") return "Shared a video";
+    if (type === "pdf") return "Shared a PDF";
+    return "Shared an image";
   }
 
   function measureImage(file) {
@@ -145,17 +203,23 @@ function setup() {
   async function prepareMediaFile(file) {
     const kind = getMediaKind(file);
     if (!kind) {
-      throw new Error(`${file.name} is not an image or video`);
+      throw new Error(`${file.name} is not an image, video, or PDF`);
     }
 
     if (kind === "video" && file.size > MAX_VIDEO_BYTES) {
       throw new Error(`${file.name} is larger than ${formatBytes(MAX_VIDEO_BYTES)}`);
     }
 
+    if (kind === "pdf" && file.size > MAX_PDF_BYTES) {
+      throw new Error(`${file.name} is larger than ${formatBytes(MAX_PDF_BYTES)}`);
+    }
+
     const preparedFile = kind === "image" ? await compressImage(file) : file;
     const dimensions = kind === "image"
       ? await measureImage(preparedFile).catch(() => ({}))
-      : await measureVideo(preparedFile);
+      : kind === "video"
+        ? await measureVideo(preparedFile)
+        : {};
 
     return {
       file: preparedFile,
@@ -188,6 +252,11 @@ function setup() {
   }
 
   function handleMediaSelect(event) {
+    if (isEditingMessage.value) {
+      event.target.value = "";
+      return;
+    }
+
     const files = [...event.target.files];
     const remainingSlots = MAX_ATTACHMENTS - selectedMedia.value.length;
     const acceptedFiles = files.slice(0, Math.max(0, remainingSlots));
@@ -202,6 +271,11 @@ function setup() {
 
       if (kind === "video" && file.size > MAX_VIDEO_BYTES) {
         sendError.value = `Videos must be ${formatBytes(MAX_VIDEO_BYTES)} or smaller.`;
+        continue;
+      }
+
+      if (kind === "pdf" && file.size > MAX_PDF_BYTES) {
+        sendError.value = `PDFs must be ${formatBytes(MAX_PDF_BYTES)} or smaller.`;
         continue;
       }
 
@@ -230,6 +304,20 @@ function setup() {
   onBeforeUnmount(clearSelectedMedia);
 
   watch(
+    editTarget,
+    async (target) => {
+      if (!target) return;
+
+      clearSelectedMedia();
+      myMessage.value = target.content || "";
+      sendError.value = "";
+      await nextTick();
+      resizeMessageInput();
+      messageInput.value?.focus?.();
+    },
+  );
+
+  watch(
     mentionRequest,
     async (request) => {
       if (!request?.text) return;
@@ -239,6 +327,7 @@ function setup() {
         : request.text;
 
       await nextTick();
+      resizeMessageInput();
       messageInput.value?.focus?.();
     },
   );
@@ -252,8 +341,68 @@ function setup() {
 
     // Trim whitespace for validation and sending
     const trimmedMessage = myMessage.value.trim();
+    const edit = editTarget.value;
 
     const attachments = [...selectedMedia.value];
+
+    if (edit) {
+      if (!trimmedMessage) {
+        sendError.value = "Edited message cannot be empty";
+        return;
+      }
+
+      if (trimmedMessage === (edit.content || "").trim()) {
+        sendError.value = "Make a change before saving";
+        return;
+      }
+
+      if (!activeChatId.value) {
+        sendError.value = "No active chat selected";
+        return;
+      }
+
+      if (!session.value?.actor) {
+        sendError.value = "Please log in before editing a message";
+        return;
+      }
+
+      const chatId = activeChatId.value;
+      const actor = session.value.actor;
+      const clientId = crypto.randomUUID();
+
+      isSending.value = true;
+      sendError.value = "";
+
+      try {
+        await graffiti.post(
+          {
+            value: {
+              action: "MessageEdit",
+              value: trimmedMessage,
+              clientId,
+              messageId: edit.id,
+              chatId,
+              published: Date.now(),
+              user: actor,
+            },
+            channels: [`chat:${chatId}:MessageInteractions`],
+          },
+          session.value,
+        );
+
+        myMessage.value = "";
+        chatStore.clearEditTarget();
+        await nextTick();
+        resizeMessageInput();
+      } catch (err) {
+        sendError.value = "Edit failed to save. Please try again.";
+        console.error("Failed to edit message:", err);
+      } finally {
+        isSending.value = false;
+      }
+
+      return;
+    }
 
     // Validate message is not empty
     if (!trimmedMessage && attachments.length === 0) {
@@ -283,6 +432,8 @@ function setup() {
     chatStore.clearReplyTarget();
     isSending.value = true;
     sendError.value = "";
+    await nextTick();
+    resizeMessageInput();
 
     try {
       const media = attachments.length
@@ -323,7 +474,7 @@ function setup() {
 
       chatStore.recordLatestMessage({
         chatId,
-        content: trimmedMessage || (media[0]?.type === "video" ? "Shared a video" : "Shared an image"),
+        content: trimmedMessage || getAttachmentLabel(media[0]?.type),
         published,
         user: actor,
       });
@@ -342,14 +493,21 @@ function setup() {
     myMessage,
     messageInput,
     selectedMedia,
+    composerTarget,
+    isEditingMessage,
+    submitLabel,
+    isSubmitDisabled,
     sendMessage,
+    handleMessageInput,
+    handleMessageKeydown,
     handleMediaSelect,
     removeSelectedMedia,
     formatBytes,
     isSending,
     sendError,
     replyTarget,
-    clearReplyTarget: chatStore.clearReplyTarget,
+    editTarget,
+    clearComposerTarget,
   };
 }
 

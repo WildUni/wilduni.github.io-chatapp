@@ -245,6 +245,37 @@ This document contains all JSON schemas used throughout the chat application for
           "type": "string",
           "description": "The message text content"
         },
+        "media": {
+          "type": "array",
+          "description": "Optional image, video, or PDF attachments",
+          "items": {
+            "type": "object",
+            "required": ["url", "type", "mimeType", "name", "size"],
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Graffiti media URL"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["image", "video", "pdf"],
+                "description": "Attachment display kind"
+              },
+              "mimeType": {
+                "type": "string",
+                "description": "Uploaded file MIME type"
+              },
+              "name": {
+                "type": "string",
+                "description": "Original file name"
+              },
+              "size": {
+                "type": "number",
+                "description": "Uploaded file size in bytes"
+              }
+            }
+          }
+        },
         "published": {
           "type": "number",
           "description": "Timestamp when message was sent (milliseconds)"
@@ -264,12 +295,63 @@ This document contains all JSON schemas used throughout the chat application for
 {
   "value": {
     "action": "Message",
-    "content": "Hello everyone!",
+    "content": "Here is the assignment brief.",
+    "media": [
+      {
+        "url": "graffiti://media/550e8400-e29b-41d4-a716-446655440000",
+        "type": "pdf",
+        "mimeType": "application/pdf",
+        "name": "assignment-brief.pdf",
+        "size": 204800
+      }
+    ],
     "published": 1714982500000,
     "user": "user:alice@example.com"
   }
 }
 ```
+
+---
+
+## 5a. Chat Message Interactions Schema
+
+**Purpose:** Store message likes, pins, edits, and recalls  
+**Location:** `Components/chatFlow.js` - messageInteractions  
+**Graffiti Channel:** `chat:{chatId}:MessageInteractions`
+
+```json
+{
+  "properties": {
+    "value": {
+      "required": ["action", "messageId", "published", "user"],
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": ["MessageLike", "MessagePin", "MessageEdit", "MessageRecall"]
+        },
+        "messageId": {
+          "type": "string",
+          "description": "Message object URL or client ID"
+        },
+        "value": {
+          "type": "string",
+          "description": "Like/Unlike, Pin/Unpin, edited message content, or Recall"
+        },
+        "published": {
+          "type": "number",
+          "description": "Timestamp when interaction was sent (milliseconds)"
+        },
+        "user": {
+          "type": "string",
+          "description": "Actor identifier of interaction author"
+        }
+      }
+    }
+  }
+}
+```
+
+Only interactions authored by the original message sender are applied for `MessageEdit` and `MessageRecall`.
 
 ---
 

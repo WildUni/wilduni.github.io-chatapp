@@ -18,7 +18,9 @@ function setup(props) {
   const mediaKind = computed(() => props.attachment?.type || "");
   const isImage = computed(() => mediaKind.value === "image");
   const isVideo = computed(() => mediaKind.value === "video");
+  const isPdf = computed(() => mediaKind.value === "pdf");
   const displayName = computed(() => props.attachment?.name || "Media attachment");
+  const displaySize = computed(() => formatBytes(props.attachment?.size));
   const sourceUrl = computed(() => props.attachment?.previewUrl || objectUrl.value);
   const attachmentStyle = computed(() => {
     const width = Number(props.attachment?.width);
@@ -40,6 +42,14 @@ function setup(props) {
     isLightboxOpen.value = false;
   }
 
+  function formatBytes(bytes) {
+    if (!bytes) return "";
+    const units = ["B", "KB", "MB", "GB"];
+    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    const value = bytes / Math.pow(1024, exponent);
+    return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+  }
+
   function closeOnEscape(event) {
     if (event.key === "Escape") closeLightbox();
   }
@@ -55,7 +65,7 @@ function setup(props) {
     const maxBytes = props.maxBytes || DEFAULT_MAX_BYTES;
     const acceptedTypes = props.attachment?.mimeType
       ? [props.attachment.mimeType]
-      : ["image/*", "video/*"];
+      : ["image/*", "video/*", "application/pdf"];
 
     try {
       return await graffiti.getMedia(
@@ -124,7 +134,9 @@ function setup(props) {
     attachmentStyle,
     isImage,
     isVideo,
+    isPdf,
     displayName,
+    displaySize,
     isLoading,
     loadError,
     isLightboxOpen,

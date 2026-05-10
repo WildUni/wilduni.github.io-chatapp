@@ -1,7 +1,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import loadMediaAttachment from "./mediaAttachment.js";
 
-function setup() {
+function setup(props, { emit }) {
     const messageWrapper = ref(null);
     const isActionTrayPinned = ref(false);
     const isProfileCardOpen = ref(false);
@@ -21,6 +21,20 @@ function setup() {
 
     function toggleProfileCard() {
         isProfileCardOpen.value = !isProfileCardOpen.value;
+    }
+
+    function requestEdit() {
+        if (!props.canManageMessage || props.isRecalled) return;
+
+        isActionTrayPinned.value = false;
+        emit("edit-message");
+    }
+
+    function recallMessage() {
+        if (!props.canManageMessage || props.isRecalled) return;
+
+        isActionTrayPinned.value = false;
+        emit("recall-message");
     }
 
     function addOutsideClickListener() {
@@ -103,13 +117,15 @@ function setup() {
         isProfileCardOpen,
         toggleActionTray,
         toggleProfileCard,
+        requestEdit,
+        recallMessage,
         linkifyText,
     }
 }
 
 export default async () => ({
-    props: ["username", "profileBio", "profilePronouns", "messageContent", "mediaAttachments", "avatarUrl", "avatarIsLoading", "published", "isOwnMessage", "showName", "showAvatar", "isPending", "pendingStatus", "messageId", "likeCount", "isLiked", "isPinned", "replyTo", "replyToContent"],
-    emits: ["toggle-like", "toggle-pin", "reply", "open-reply", "mention-user"],
+    props: ["username", "profileBio", "profilePronouns", "messageContent", "mediaAttachments", "avatarUrl", "avatarIsLoading", "published", "isOwnMessage", "showName", "showAvatar", "isPending", "pendingStatus", "messageId", "likeCount", "isLiked", "isPinned", "replyTo", "replyToContent", "isEdited", "isRecalled", "canManageMessage"],
+    emits: ["toggle-like", "toggle-pin", "reply", "open-reply", "mention-user", "edit-message", "recall-message"],
     setup,
     components: {
         MediaAttachment: await loadMediaAttachment(),

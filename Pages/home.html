@@ -92,7 +92,7 @@
                 <p v-if="createError" class="form-error">Branch creation failed. Please try again.</p>
             </div>
 
-            <footer class="plain-modal-footer">
+            <footer class="plain-modal-footer create-branch-modal-footer">
                 <wa-button
                     variant="brand"
                     @click="createBranchUnderActiveChat"
@@ -120,9 +120,57 @@
             <wa-icon name="arrow-left"></wa-icon>
         </wa-button>
         <div v-if="activeChatId" class="chat-name-wrapper">
-            <div v-if="isMobilePortrait" class="mobile-chat-title">
-                {{ mobileChatHeaderTitle }}
-            </div>
+            <wa-dropdown
+                v-if="isMobilePortrait"
+                class="mobile-chat-title-dropdown"
+                placement="bottom-start"
+            >
+                <button
+                    slot="trigger"
+                    type="button"
+                    class="mobile-chat-title-button"
+                    title="Open branches"
+                    aria-label="Open branches"
+                >
+                    <span class="mobile-chat-title-copy">
+                        <span class="mobile-chat-title-main">{{ mobileChatHeaderTitle }}</span>
+                        <span v-if="mobileChatHeaderSubtitle" class="mobile-chat-title-subtitle">
+                            ({{ mobileChatHeaderSubtitle }})
+                        </span>
+                    </span>
+                    <wa-icon name="chevron-down" class="mobile-chat-title-caret"></wa-icon>
+                </button>
+                <div class="mobile-branch-tree" role="tree" aria-label="Branches">
+                  <div
+                    v-for="branch in mobileBranchOptions"
+                    :key="branch.id"
+                    class="mobile-branch-tree-row"
+                    :class="{ 'is-active': branch.id === activeChatId }"
+                    role="treeitem"
+                    :aria-selected="branch.id === activeChatId"
+                    :style="{ '--branch-depth': branch.depth }"
+                  >
+                    <button
+                        type="button"
+                        class="mobile-branch-tree-select"
+                        @click.stop="selectMobileBranch(branch, $event)"
+                    >
+                        <span class="mobile-branch-tree-guide" aria-hidden="true"></span>
+                        <wa-icon :name="branch.id === activeChatId ? 'check' : 'code-branch'"></wa-icon>
+                        <span class="mobile-branch-tree-name">{{ branch.name }}</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="mobile-branch-tree-create"
+                        title="Create branch here"
+                        aria-label="Create branch here"
+                        @click.stop="createMobileBranch(branch, $event)"
+                    >
+                        <wa-icon name="plus"></wa-icon>
+                    </button>
+                  </div>
+                </div>
+            </wa-dropdown>
             <wa-breadcrumb v-else class="chat-breadcrumb">
                 <wa-breadcrumb-item
                     v-for="(item, index) in chatBreadcrumb"
@@ -306,7 +354,6 @@
                             <wa-icon name="image"></wa-icon>
                             Change photo
                         </span>
-                        <wa-icon name="chevron-right"></wa-icon>
                         <input
                             type="file"
                             accept="image/*"
@@ -324,7 +371,6 @@
                             <wa-icon name="pen-to-square"></wa-icon>
                             Rename chat
                         </span>
-                        <wa-icon name="chevron-right"></wa-icon>
                     </button>
 
                     <p v-if="renameError" class="settings-error">Update failed.</p>
@@ -421,15 +467,29 @@
                 :key="message.messageId"
                 class="pinned-message-item"
             >
-                <div class="pinned-message-meta">
-                    <wa-avatar
-                        label="Pinned message author"
-                        :image.prop="message.profile.avatarUrl || ''"
-                        class="pinned-message-avatar"
-                    ></wa-avatar>
-                    <span>{{ message.profile.name || message.value.user }}</span>
+                <div class="pinned-message-header">
+                    <div class="pinned-message-meta">
+                        <wa-avatar
+                            label="Pinned message author"
+                            :image.prop="message.profile.avatarUrl || ''"
+                            class="pinned-message-avatar"
+                        ></wa-avatar>
+                        <span>{{ message.profile.name || message.value.user }}</span>
+                    </div>
+                    <wa-button
+                        appearance="plain"
+                        class="pinned-message-unpin"
+                        title="Unpin message"
+                        aria-label="Unpin message"
+                        @click="unpinPinnedMessage(message)"
+                    >
+                        <wa-icon name="thumbtack"></wa-icon>
+                    </wa-button>
                 </div>
-                <p>{{ message.value.content }}</p>
+                <p>
+                    {{ message.displayContent }}
+                    <span v-if="message.isEdited" class="pinned-message-edited-note">Edited</span>
+                </p>
             </li>
         </ul>
 

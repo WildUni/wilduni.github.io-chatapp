@@ -175,6 +175,8 @@ function setup() {
   const messageInteractionState = computed(() => {
     const latestLikeByMessageAndUser = {};
     const latestPinByMessage = {};
+    const latestEditByMessage = {};
+    const latestRecallByMessage = {};
 
     for (const obj of messageInteractionsInView.value) {
       const { action, messageId, published, user } = obj.value;
@@ -192,6 +194,22 @@ function setup() {
         const existing = latestPinByMessage[messageId];
         if (!existing || existing.value.published < published) {
           latestPinByMessage[messageId] = obj;
+        }
+      }
+
+      if (action === "MessageEdit") {
+        latestEditByMessage[messageId] ??= {};
+        const existing = latestEditByMessage[messageId][user];
+        if (!existing || existing.value.published < published) {
+          latestEditByMessage[messageId][user] = obj;
+        }
+      }
+
+      if (action === "MessageRecall") {
+        latestRecallByMessage[messageId] ??= {};
+        const existing = latestRecallByMessage[messageId][user];
+        if (!existing || existing.value.published < published) {
+          latestRecallByMessage[messageId][user] = obj;
         }
       }
     }
@@ -216,6 +234,8 @@ function setup() {
       likesByMessage,
       likedByCurrentUser,
       pinnedByMessage,
+      editByMessage: latestEditByMessage,
+      recallByMessage: latestRecallByMessage,
     };
   });
 
@@ -257,10 +277,19 @@ function setup() {
       const nextMessage = orderedMessages[index + 1];
       const user = msg.value.user;
       const messageId = getMessageId(msg);
+      const edit = messageInteractionState.value.editByMessage[messageId]?.[user];
+      const recall = messageInteractionState.value.recallByMessage[messageId]?.[user];
+      const isRecalled = recall?.value.value === "Recall";
+      const editedContent = edit?.value.value ?? null;
+      const isEdited = !isRecalled && typeof editedContent === "string" && editedContent !== msg.value.content;
 
       return {
         ...msg,
         messageId,
+        displayContent: isRecalled ? "" : editedContent ?? msg.value.content,
+        displayMedia: isRecalled ? [] : msg.value.media ?? [],
+        isEdited,
+        isRecalled,
         isFirstInChunk: !isSameChunk(previousMessage, msg),
         isLastInChunk: !isSameChunk(msg, nextMessage),
         isFirstInTimeChunk: !isSameTimeChunk(previousMessage, msg),
@@ -270,6 +299,46 @@ function setup() {
         isPinned: !!messageInteractionState.value.pinnedByMessage[messageId],
       };
     });
+  });
+
+  const chatItems = computed(() => {
+    const items = [];
+
+    for (const message of messagesWithProfiles.value) {
+      if (!message.isRecalled) {
+        items.push({
+          itemType: "message",
+          key: message.url || `${message.value.user}-${message.value.published}`,
+          message,
+          isFirstInTimeChunk: message.isFirstInTimeChunk,
+          published: message.value.published,
+        });
+        continue;
+      }
+
+      const previousItem = items[items.length - 1];
+      if (
+        previousItem?.itemType === "recallSummary" &&
+        previousItem.user === message.value.user &&
+        !message.isFirstInTimeChunk
+      ) {
+        previousItem.count += 1;
+        previousItem.key = `${previousItem.key}:${message.messageId}`;
+        continue;
+      }
+
+      items.push({
+        itemType: "recallSummary",
+        key: `recall:${message.messageId}`,
+        user: message.value.user,
+        username: message.profile?.name || message.value.user,
+        count: 1,
+        isFirstInTimeChunk: message.isFirstInTimeChunk,
+        published: message.value.published,
+      });
+    }
+
+    return items;
   });
 
   async function postMessageInteraction(messageId, action, value) {
@@ -285,7 +354,7 @@ function setup() {
       user: session.value.actor,
     };
 
-    if (action === "MessageLike" || action === "MessagePin") {
+    if (action === "MessageLike" || action === "MessagePin" || action === "MessageEdit" || action === "MessageRecall") {
       pendingMessageInteractions.value.push({
         url: `pending-interaction:${clientId}`,
         value: interaction,
@@ -318,12 +387,31 @@ function setup() {
     return postMessageInteraction(message.messageId, "MessagePin", value);
   }
 
+  function editMessage(message) {
+    if (message.isPending || message.isRecalled || message.value.user !== session.value?.actor) return;
+    chatStore.setEditTarget({
+      id: message.messageId,
+      content: message.displayContent || "",
+      previewContent: message.value.content || (message.value.media?.length ? "Media" : ""),
+      user: message.value.user,
+      username: message.profile?.name,
+    });
+  }
+
+  function recallMessage(message) {
+    if (message.isPending || message.isRecalled || message.value.user !== session.value?.actor) return;
+
+    return postMessageInteraction(message.messageId, "MessageRecall", "Recall");
+  }
+
   function replyToMessage(message) {
     if (message.isPending) return;
 
     chatStore.setReplyTarget({
       id: message.messageId,
-      content: message.value.content || (message.value.media?.length ? "Media" : ""),
+      content: message.isRecalled
+        ? "Message recalled"
+        : message.displayContent || (message.displayMedia?.length ? "Media" : ""),
       user: message.value.user,
       username: message.profile?.name,
     });
@@ -451,6 +539,7 @@ function setup() {
   return {
     chatMessages,
     messagesWithProfiles,
+    chatItems,
     activeChatId,
     isMessagesLoading: computed(() =>
       activeChatId.value != null
@@ -463,6 +552,8 @@ function setup() {
     formatMessageTime,
     toggleLike,
     togglePin,
+    editMessage,
+    recallMessage,
     replyToMessage,
     mentionUser,
     scrollToMessage

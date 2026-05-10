@@ -1,45 +1,47 @@
 
 <div class="inputContainer">
-    <div v-if="replyTarget" class="reply-composer-preview">
+    <div v-if="composerTarget" class="reply-composer-preview">
         <div class="reply-composer-copy">
-            <span>Replying to</span>
-            <strong>{{ replyTarget.content }}</strong>
+            <span>{{ isEditingMessage ? "Editing message" : "Replying to" }}</span>
+            <strong>{{ composerTarget.previewContent || composerTarget.content }}</strong>
         </div>
         <wa-button
             appearance="plain"
             class="reply-clear-button"
-            title="Cancel reply"
-            aria-label="Cancel reply"
-            @click="clearReplyTarget"
+            :title="isEditingMessage ? 'Cancel edit' : 'Cancel reply'"
+            :aria-label="isEditingMessage ? 'Cancel edit' : 'Cancel reply'"
+            @click="clearComposerTarget"
         >
             <wa-icon name="xmark"></wa-icon>
         </wa-button>
     </div>
-    <wa-input placeholder="Message" 
-    ref="messageInput"
-    with-clear 
-    :value='myMessage' 
-    @input="myMessage = $event.target.value"
-    @keydown.enter="sendMessage"
-    :disabled.prop="isSending"
-    class="message-input"></wa-input>
     <label
         class="media-upload-button"
-        :class="{ 'is-disabled': isSending || selectedMedia.length >= 4 }"
-        title="Attach image or video"
-        aria-label="Attach image or video"
+        :class="{ 'is-disabled': isSending || isEditingMessage || selectedMedia.length >= 4 }"
+        title="Attach image, video, or PDF"
+        aria-label="Attach image, video, or PDF"
     >
         <wa-icon name="paperclip"></wa-icon>
         <input
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,video/*,application/pdf,.pdf"
             multiple
-            :disabled="isSending || selectedMedia.length >= 4"
+            :disabled="isSending || isEditingMessage || selectedMedia.length >= 4"
             @change="handleMediaSelect"
         />
     </label>
-    <button @click="sendMessage" :disabled="(!myMessage.trim().length && selectedMedia.length === 0) || isSending">
-        {{ isSending ? "Sending..." : "Send" }}
+    <textarea
+        ref="messageInput"
+        class="message-input"
+        placeholder="Message"
+        rows="1"
+        :value="myMessage"
+        :disabled="isSending"
+        @input="handleMessageInput"
+        @keydown="handleMessageKeydown"
+    ></textarea>
+    <button @click="sendMessage" :disabled="isSubmitDisabled">
+        {{ submitLabel }}
     </button>
     <div v-if="selectedMedia.length" class="composer-media-list">
         <div
@@ -54,12 +56,15 @@
                 class="composer-media-thumb"
             />
             <video
-                v-else
+                v-else-if="item.kind === 'video'"
                 :src="item.previewUrl"
                 class="composer-media-thumb"
                 muted
                 preload="metadata"
             ></video>
+            <div v-else class="composer-media-thumb composer-media-document-thumb">
+                <wa-icon name="file-pdf"></wa-icon>
+            </div>
             <div class="composer-media-meta">
                 <strong>{{ item.file.name }}</strong>
                 <span>{{ formatBytes(item.file.size) }}</span>

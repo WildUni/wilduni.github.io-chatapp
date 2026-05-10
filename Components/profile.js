@@ -1,10 +1,16 @@
 import { ref, watch } from "vue";
+import {
+  useGraffiti,
+  useGraffitiSession,
+} from "@graffiti-garden/wrapper-vue";
 import { useUserStore } from "../stores/user.js";
 import { storeToRefs } from "pinia"
 
 
 
 function setup() {
+  const graffiti = useGraffiti();
+  const session = useGraffitiSession();
   const userStore = useUserStore();
   const {
     profileName,
@@ -21,6 +27,7 @@ function setup() {
   const editedBio = ref("");
   const editedPronouns = ref("");
   const showProfilePanel = ref(false);
+  const showLogoutConfirm = ref(false);
   const savedTheme = localStorage.getItem("chatapp-theme");
   const theme = ref(savedTheme || document.documentElement.dataset.theme || "light");
 
@@ -92,6 +99,20 @@ function setup() {
     showProfilePanel.value = false;
   }
 
+  function requestLogout() {
+    showLogoutConfirm.value = true;
+  }
+
+  function cancelLogout() {
+    showLogoutConfirm.value = false;
+  }
+
+  function confirmLogout() {
+    showLogoutConfirm.value = false;
+    showProfilePanel.value = false;
+    graffiti.logout(session.value);
+  }
+
 
   return{
     profileName,
@@ -113,7 +134,11 @@ function setup() {
     editedPronouns,
     theme,
     toggleTheme,
-    closeProfilePanel
+    closeProfilePanel,
+    showLogoutConfirm,
+    requestLogout,
+    cancelLogout,
+    confirmLogout,
   }
 }
 

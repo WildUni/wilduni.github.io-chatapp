@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
+  useGraffiti,
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
@@ -19,6 +20,7 @@ import { useProfileCacheStore } from "../stores/profileCache.js";
 function setup() {
   const route = useRoute()
   const router = useRouter()
+  const graffiti = useGraffiti();
   const session = useGraffitiSession();
   const chatStore = useChatStore();
   const profileCache = useProfileCacheStore();
@@ -181,6 +183,7 @@ function setup() {
           properties: {
             action: { type: "string" },
             chatId: { type: "string" },
+            clientId: { type: "string" },
             messageId: { type: "string" },
             value: { type: "string" },
             published: { type: "number" },
@@ -192,14 +195,21 @@ function setup() {
     session
   );
 
+  const pendingPinnedMessageInteractions = ref([]);
+
   function getMessageId(message) {
     return message.url || message.value.clientId || `${message.value.user}:${message.value.published}`;
   }
 
+  const activeMessageInteractionsInView = computed(() => [
+    ...activeMessageInteractions.value,
+    ...pendingPinnedMessageInteractions.value,
+  ]);
+
   const pinnedMessageIds = computed(() => {
     const latestPinByMessage = {};
 
-    for (const obj of activeMessageInteractions.value) {
+    for (const obj of activeMessageInteractionsInView.value) {
       const { action, messageId, published } = obj.value;
       if (action !== "MessagePin" || !messageId || !published) continue;
 
@@ -216,30 +226,119 @@ function setup() {
     );
   });
 
+  const messageContentState = computed(() => {
+    const latestEditByMessage = {};
+    const latestRecallByMessage = {};
+
+    for (const obj of activeMessageInteractionsInView.value) {
+      const { action, messageId, published } = obj.value;
+      if (!messageId || !published) continue;
+
+      if (action === "MessageEdit") {
+        latestEditByMessage[messageId] ??= {};
+        const existing = latestEditByMessage[messageId][obj.value.user];
+        if (!existing || existing.value.published < published) {
+          latestEditByMessage[messageId][obj.value.user] = obj;
+        }
+      }
+
+      if (action === "MessageRecall") {
+        latestRecallByMessage[messageId] ??= {};
+        const existing = latestRecallByMessage[messageId][obj.value.user];
+        if (!existing || existing.value.published < published) {
+          latestRecallByMessage[messageId][obj.value.user] = obj;
+        }
+      }
+    }
+
+    return {
+      editByMessage: latestEditByMessage,
+      recallByMessage: latestRecallByMessage,
+    };
+  });
+
+  function getMessageDisplayState(message) {
+    const messageId = getMessageId(message);
+    const user = message.value.user;
+    const edit = messageContentState.value.editByMessage[messageId]?.[user];
+    const recall = messageContentState.value.recallByMessage[messageId]?.[user];
+    const isRecalled = recall?.value.value === "Recall";
+    const editedContent = edit?.value.value ?? null;
+
+    return {
+      isRecalled,
+      isEdited: !isRecalled && typeof editedContent === "string" && editedContent !== message.value.content,
+      displayContent: isRecalled ? "This message was recalled." : editedContent ?? message.value.content,
+    };
+  }
+
   const pinnedMessages = computed(() =>
     activeMessages.value
-      .map(message => ({
-        ...message,
-        messageId: getMessageId(message),
-        profile: profileCache.getProfile(message.value.user),
-      }))
+      .map(message => {
+        const messageId = getMessageId(message);
+
+        return {
+          ...message,
+          ...getMessageDisplayState(message),
+          messageId,
+          profile: profileCache.getProfile(message.value.user),
+        };
+      })
       .filter(message => pinnedMessageIds.value.has(message.messageId))
       .sort((a, b) => b.value.published - a.value.published)
   );
 
+  async function unpinPinnedMessage(message) {
+    if (!session.value?.actor || !activeChatId.value || !message?.messageId) return;
+
+    const clientId = crypto.randomUUID();
+    const interaction = {
+      action: "MessagePin",
+      value: "Unpin",
+      clientId,
+      messageId: message.messageId,
+      chatId: activeChatId.value,
+      published: Date.now(),
+      user: session.value.actor,
+    };
+
+    pendingPinnedMessageInteractions.value.push({
+      url: `pending-pinned-interaction:${clientId}`,
+      value: interaction,
+    });
+
+    try {
+      await graffiti.post(
+        {
+          value: interaction,
+          channels: [`chat:${activeChatId.value}:MessageInteractions`],
+        },
+        session.value
+      );
+    } catch (err) {
+      pendingPinnedMessageInteractions.value = pendingPinnedMessageInteractions.value.filter(
+        pending => pending.value.clientId !== clientId
+      );
+      console.error("Failed to unpin message:", err);
+    }
+  }
+
   const recentMedia = computed(() =>
     activeMessages.value
-      .flatMap(message =>
-        (message.value.media ?? []).map((attachment, index) => ({
+      .flatMap(message => {
+        const displayState = getMessageDisplayState(message);
+        if (displayState.isRecalled) return [];
+
+        return (message.value.media ?? []).map((attachment, index) => ({
           ...attachment,
           key: `${message.url || message.value.clientId || message.value.published}:${attachment.url}:${index}`,
           messageId: getMessageId(message),
-          messageContent: message.value.content,
+          messageContent: displayState.displayContent,
           published: message.value.published,
           user: message.value.user,
           profile: profileCache.getProfile(message.value.user),
-        }))
-      )
+        }));
+      })
       .sort((a, b) => b.published - a.published)
       .slice(0, 12)
   );
@@ -247,6 +346,20 @@ function setup() {
   watch(
     () => pinnedMessages.value.map(message => message.value.user),
     (users) => profileCache.ensureUsers(users),
+    { immediate: true }
+  );
+
+  watch(
+    activeMessageInteractions,
+    (interactions) => {
+      const confirmedClientIds = new Set(
+        interactions.map(interaction => interaction.value.clientId).filter(Boolean)
+      );
+
+      pendingPinnedMessageInteractions.value = pendingPinnedMessageInteractions.value.filter(
+        pending => !confirmedClientIds.has(pending.value.clientId)
+      );
+    },
     { immediate: true }
   );
 
@@ -465,19 +578,60 @@ function setup() {
     }));
   });
 
-  const mobileChatHeaderTitle = computed(() => {
+  const mobileChatHeader = computed(() => {
     const rootName = activeChatRootName.value || activeChatName.value || "Untitled chat";
 
     if (!activeChatId.value || activeChatId.value === activeChatRootId.value) {
-      return rootName;
+      return {
+        title: rootName,
+        subtitle: "",
+      };
     }
 
     const activeNode = getBreadcrumbNode(activeChatId.value);
     const branchName = activeNode?.name || activeChatName.value || "Untitled branch";
 
-    return branchName && branchName !== rootName
-      ? `${rootName} (${branchName})`
-      : rootName;
+    return {
+      title: rootName,
+      subtitle: branchName && branchName !== rootName ? branchName : "",
+    };
+  });
+
+  const mobileChatHeaderTitle = computed(() => mobileChatHeader.value.title);
+  const mobileChatHeaderSubtitle = computed(() => mobileChatHeader.value.subtitle);
+
+  const mobileBranchOptions = computed(() => {
+    const rootId = activeChatRootId.value || activeChatId.value;
+    if (!rootId) return [];
+
+    const options = [];
+    const visited = new Set();
+
+    function collect(chatId, depth = 0) {
+      if (!chatId || visited.has(chatId)) return;
+      visited.add(chatId);
+
+      const node = getBreadcrumbNode(chatId);
+      if (!node) return;
+
+      options.push({
+        ...node,
+        depth,
+      });
+
+      Object.values(branchMap.value)
+        .filter(branch =>
+          branch.action !== "Delete" &&
+          branch.rootChatId === rootId &&
+          branch.parentChatId === chatId &&
+          branch.chatId !== chatId
+        )
+        .sort((a, b) => a.published - b.published)
+        .forEach(branch => collect(branch.chatId, depth + 1));
+    }
+
+    collect(rootId);
+    return options;
   });
 
   const branchPendingDeleteSubtree = computed(() => {
@@ -762,6 +916,30 @@ function setup() {
     setActiveChat(item.id, item.name, item.rootChatId, item.parentChatId);
   }
 
+  function closeMobileBranchDropdown(event) {
+    const dropdown = event?.currentTarget?.closest?.("wa-dropdown");
+    if (dropdown) dropdown.open = false;
+  }
+
+  function selectMobileBranch(branch, event) {
+    if (!branch) return;
+
+    if (branch.id === activeChatId.value) {
+      closeMobileBranchDropdown(event);
+      return;
+    }
+
+    setActiveChat(branch.id, branch.name, branch.rootChatId, branch.parentChatId);
+    closeMobileBranchDropdown(event);
+  }
+
+  function createMobileBranch(branch, event) {
+    if (!branch?.id) return;
+
+    openBranchPanel(branch);
+    closeMobileBranchDropdown(event);
+  }
+
   /**
    * Combined watch: Handle route changes and update chat info from list
    * - Update active chat ID when route changes (page refresh support)
@@ -820,6 +998,8 @@ function setup() {
     mobileHomeView,
     isMobilePortrait,
     mobileChatHeaderTitle,
+    mobileChatHeaderSubtitle,
+    mobileBranchOptions,
     openMobileChats,
     openMobileProfile,
     openMobileChatList,
@@ -877,12 +1057,15 @@ function setup() {
     showPinnedMessages,
     togglePinnedMessages,
     pinnedMessages,
+    unpinPinnedMessage,
     isCustomizeChatOpen,
     isMembersOpen,
     isMediaOpen,
     showRenameDialog,
     openRenameDialog,
     navigateBreadcrumb,
+    selectMobileBranch,
+    createMobileBranch,
     recentMedia
   }
 }

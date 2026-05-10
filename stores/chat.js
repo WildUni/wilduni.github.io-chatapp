@@ -66,6 +66,7 @@ export const useChatStore = defineStore("chat", () => {
   const activeChatImageUrl = ref(null);
   const activeChatImageLoading = ref(false);
   const replyTarget = ref(null);
+  const editTarget = ref(null);
   const mentionRequest = ref(null);
   let currentChatImageObjectUrl = null;
   const successTimers = {
@@ -1142,11 +1143,21 @@ export const useChatStore = defineStore("chat", () => {
   }
 
   function setReplyTarget(message) {
+    editTarget.value = null;
     replyTarget.value = message;
   }
 
   function clearReplyTarget() {
     replyTarget.value = null;
+  }
+
+  function setEditTarget(message) {
+    replyTarget.value = null;
+    editTarget.value = message;
+  }
+
+  function clearEditTarget() {
+    editTarget.value = null;
   }
 
   function queueMention(userName) {
@@ -1333,6 +1344,7 @@ export const useChatStore = defineStore("chat", () => {
     activeChatImageUrl,
     activeChatImageLoading,
     replyTarget,
+    editTarget,
     mentionRequest,
     chatImageUrls,
     chatImageLoadingByChat,
@@ -1349,6 +1361,8 @@ export const useChatStore = defineStore("chat", () => {
     markChatRead,
     setReplyTarget,
     clearReplyTarget,
+    setEditTarget,
+    clearEditTarget,
     queueMention,
 
     // Create chat
