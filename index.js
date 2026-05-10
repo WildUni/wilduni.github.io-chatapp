@@ -97,6 +97,21 @@ function setup() {
   const session = useGraffitiSession(); // Track user session state
   const route = useRoute();
   const router = useRouter();
+  const savedTheme = localStorage.getItem("chatapp-theme");
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches;
+  const theme = ref(savedTheme || (prefersDark ? "dark" : "light"));
+
+  function applyTheme(nextTheme) {
+    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.style.colorScheme = nextTheme;
+    localStorage.setItem("chatapp-theme", nextTheme);
+  }
+
+  function toggleTheme() {
+    theme.value = theme.value === "dark" ? "light" : "dark";
+  }
+
+  watch(theme, applyTheme, { immediate: true });
   
   // Watch for changes in session or route
   watch(
@@ -118,7 +133,10 @@ function setup() {
     { immediate: true } // Run check immediately on app load
   );
   
-  return {};
+  return {
+    theme,
+    toggleTheme,
+  };
 }
 
 // ============================================================

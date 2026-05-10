@@ -1,62 +1,106 @@
 
 <wa-button
-    data-drawer="open createChatMenu"
     class="create-chat-button"
     title="Create chat"
-    aria-label="Create chat">
+    aria-label="Create chat"
+    @click="showCreateChatPanel = true">
     <wa-icon name="plus"></wa-icon>
 </wa-button>
 
 <wa-button
-    data-drawer="open joinChatMenu"
     class="create-chat-button"
     title="Join chat"
-    aria-label="Join chat">
+    aria-label="Join chat"
+    @click="showJoinChatPanel = true">
     <wa-icon name="right-to-bracket"></wa-icon>
 </wa-button>
 
-<wa-drawer label="Create New Chat" id="createChatMenu" placement="top">
-    <div class="panel-wrapper">
-        <h4>Create your own chat!</h4>
-        <p>Add a chat name, or leave it blank to use member names automatically.</p>
-        <input
-            v-model="newChatName"
-            placeholder="Chat name (optional)"
-            maxlength="30"
-            type="text"
-            @keydown.enter="handleCreateChat"/>
-        <p v-if="createError" class="form-error">Chat creation failed. Please try again.</p>
+<teleport to="body">
+    <div
+        v-if="showCreateChatPanel"
+        class="plain-modal-backdrop"
+        @click.self="closeCreateChatPanel"
+    >
+        <section class="plain-modal" role="dialog" aria-modal="true" aria-labelledby="create-chat-title">
+            <header class="plain-modal-header">
+                <h2 id="create-chat-title">Create New Chat</h2>
+                <button
+                    type="button"
+                    class="plain-icon-button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="closeCreateChatPanel"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </button>
+            </header>
+
+            <div class="panel-wrapper">
+                <h4>Create a chat</h4>
+                <p>Name it now, or leave the field blank and Chatree will use member names.</p>
+                <input
+                    v-model="newChatName"
+                    placeholder="Chat name (optional)"
+                    maxlength="30"
+                    type="text"
+                    @keydown.enter="handleCreateChat"/>
+                <p v-if="createError" class="form-error">Chat creation failed. Please try again.</p>
+            </div>
+
+            <footer class="plain-modal-footer">
+                <wa-button
+                    :variant="createSuccess ? 'success' : 'brand'"
+                    @click="handleCreateChat"
+                    :disabled.prop="isCreating">
+                    <wa-icon name="check" v-if="createSuccess"></wa-icon>
+                    <wa-spinner v-if="isCreating"></wa-spinner>
+                    {{ isCreating ? "Creating..." : createSuccess ? "Chat Created" : "Create" }}
+                </wa-button>
+            </footer>
+        </section>
     </div>
+</teleport>
 
-    <wa-button
-        slot="footer"
-        :variant="createSuccess ? 'success' : 'brand'"
-        @click="handleCreateChat"
-        :disabled.prop="isCreating">
-        <wa-icon name="check" v-if="createSuccess"></wa-icon>
-        <wa-spinner v-if="isCreating"></wa-spinner>
-        {{ isCreating ? "Creating..." : createSuccess ? "Chat Created" : "Create" }}
-    </wa-button>
-</wa-drawer>
+<teleport to="body">
+    <div
+        v-if="showJoinChatPanel"
+        class="plain-modal-backdrop"
+        @click.self="closeJoinChatPanel"
+    >
+        <section class="plain-modal" role="dialog" aria-modal="true" aria-labelledby="join-chat-title">
+            <header class="plain-modal-header">
+                <h2 id="join-chat-title">Join Existing Chat</h2>
+                <button
+                    type="button"
+                    class="plain-icon-button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="closeJoinChatPanel"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </button>
+            </header>
 
-<wa-drawer label="Join Existing Chat" id="joinChatMenu" placement="top">
-    <div class="panel-wrapper">
-        <h4>Join an existing chat!</h4>
-        <p>Please enter the id of the chat you want to join. The id can be found in the chat's members panel or at the end of the chat's url.</p>
-        <input
-            v-model="joinChatId"
-            placeholder="Enter the target chat's id here!"
-            @keydown.enter="handleJoinChat"/>
-        <p v-if="joinError" class="form-error">Chat join failed. Please check the id and try again.</p>
+            <div class="panel-wrapper">
+                <h4>Join a chat</h4>
+                <p>Enter the chat ID from the members panel or the end of a shared chat URL.</p>
+                <input
+                    v-model="joinChatId"
+                    placeholder="Chat ID"
+                    @keydown.enter="handleJoinChat"/>
+                <p v-if="joinError" class="form-error">Chat join failed. Please check the id and try again.</p>
+            </div>
+
+            <footer class="plain-modal-footer">
+                <wa-button
+                    :variant="joinSuccess ? 'success' : 'brand'"
+                    @click="handleJoinChat"
+                    :disabled.prop="isJoining||!joinChatId">
+                    <wa-icon name="check" v-if="joinSuccess"></wa-icon>
+                    <wa-spinner v-if="isJoining"></wa-spinner>
+                    {{ isJoining ? "Joining..." : joinSuccess ? "Chat Joined" : "Join" }}
+                </wa-button>
+            </footer>
+        </section>
     </div>
-
-    <wa-button
-        slot="footer"
-        :variant="joinSuccess ? 'success' : 'brand'"
-        @click="handleJoinChat"
-        :disabled.prop="isJoining||!joinChatId">
-        <wa-icon name="check" v-if="joinSuccess"></wa-icon>
-        <wa-spinner v-if="isJoining"></wa-spinner>
-        {{ isJoining ? "Joining..." : joinSuccess ? "Chat Joined" : "Join" }}
-    </wa-button>
-</wa-drawer>
+</teleport>

@@ -1,5 +1,89 @@
 
-<wa-button appearance="filled" data-drawer="open drawer-dismiss" class="profile-pill">
+<section v-if="embedded" class="profile-embedded-page">
+    <header class="profile-embedded-header">
+        <h2>Profile</h2>
+        <button type="button" class="plain-secondary-button profile-logout-button" @click="$graffiti.logout($graffitiSession.value)">
+            Log Out
+        </button>
+    </header>
+
+    <div class="profile-embedded-body">
+        <div class="profile-wrapper" >
+            <div class="profile-image-column">
+                <label class="profile-image-upload" title="Upload a Profile Picture">
+                    <wa-skeleton
+                        v-if="profileImageLoading"
+                        effect="pulse"
+                        class="profile-image-skeleton"
+                    ></wa-skeleton>
+                    <wa-avatar
+                        v-else
+                        label="User avatar"
+                        :image.prop="profileImageUrl || ''"
+                        class="profile-image"
+                    ></wa-avatar>
+
+                    <input
+                        type="file"
+                        accept="image/*"
+                        @change="handleFileUpload"
+                        :disabled="isProfileUpdating"
+                        class="profile-image-input"
+                    />
+                </label>
+                <div
+                    v-if="isProfileUpdating || profileUpdateSuccess"
+                    class="profile-image-feedback"
+                >
+                    <wa-spinner v-if="isProfileUpdating"></wa-spinner>
+                    <wa-icon name="check" v-if="profileUpdateSuccess"></wa-icon>
+                    {{ isProfileUpdating ? "Uploading..." : "Image Saved" }}
+                </div>
+            </div>
+
+            <div class="profile-info-wrapper">
+                <div class="profile-text-info">
+                    <h6>Displayed Name: </h6>
+                    <input v-model="editedName" required>
+                </div>
+                <div class="profile-text-info">
+                    <h6>Preferred Pronouns: </h6>
+                    <input v-model="editedPronouns" placeholder="e.g. she/her, they/them">
+                </div>
+                <div class="profile-text-info">
+                    <h6>Leave a note to others ~ </h6>
+                    <textarea v-model="editedBio" placeholder="There is nothing here ~"></textarea>
+                </div>
+            </div>
+        </div>
+        <p v-if="profileUpdateError" class="form-error">Profile image update failed. Please try again.</p>
+        <p v-if="saveError" class="form-error">Profile save failed. Please try again.</p>
+    </div>
+
+    <footer class="profile-modal-footer profile-embedded-footer">
+        <wa-button
+            appearance="plain"
+            class="profile-theme-toggle"
+            :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            @click="toggleTheme"
+        >
+            <wa-icon :name="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
+            {{ theme === "dark" ? "Light mode" : "Dark mode" }}
+        </wa-button>
+        <wa-button :variant="saveSuccess ? 'success' : 'brand'"
+            class="profile-save-button"
+            @click="saveChanges"
+            :disabled.prop ='(profileName===editedName && (profileBio || "")===editedBio && (profilePronouns || "")===editedPronouns)||isSaving||isProfileUpdating'>
+            <wa-spinner v-if="isSaving"></wa-spinner>
+            <wa-icon name="check" v-if="saveSuccess"></wa-icon>
+            {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
+        </wa-button>
+    </footer>
+</section>
+
+<template v-else>
+<wa-button appearance="filled" class="profile-pill" @click="showProfilePanel = true">
 
     <div slot="start">
         <wa-skeleton
@@ -25,66 +109,107 @@
     </div>
 </wa-button>
 
-<wa-drawer label="Profile" id="drawer-dismiss" placement="bottom">
-    <div class="profile-wrapper" >
-        <div class="profile-image-column">
-            <label class="profile-image-upload" title="Upload a Profile Picture">
-                <wa-skeleton
-                    v-if="profileImageLoading"
-                    effect="pulse"
-                    class="profile-image-skeleton"
-                ></wa-skeleton>
-                <wa-avatar
-                    v-else
-                    label="User avatar"
-                    :image.prop="profileImageUrl || ''"
-                    class="profile-image"
-                ></wa-avatar>
+<teleport to="body">
+    <div
+        v-if="showProfilePanel"
+        class="plain-modal-backdrop"
+        @click.self="closeProfilePanel"
+    >
+        <section class="plain-modal profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+            <header class="plain-modal-header">
+                <h2 id="profile-title">Profile</h2>
+                <div class="profile-header-actions">
+                    <button type="button" class="plain-secondary-button profile-logout-button" @click="$graffiti.logout($graffitiSession.value)">
+                        Log Out
+                    </button>
+                    <button
+                        type="button"
+                        class="plain-icon-button"
+                        title="Close"
+                        aria-label="Close"
+                        @click="closeProfilePanel"
+                    >
+                        <wa-icon name="xmark"></wa-icon>
+                    </button>
+                </div>
+            </header>
 
-                <input
-                    type="file"
-                    accept="image/*"
-                    @change="handleFileUpload"
-                    :disabled="isProfileUpdating"
-                    class="profile-image-input"
-                />
-            </label>
-            <div
-                v-if="isProfileUpdating || profileUpdateSuccess"
-                class="profile-image-feedback"
-            >
-                <wa-spinner v-if="isProfileUpdating"></wa-spinner>
-                <wa-icon name="check" v-if="profileUpdateSuccess"></wa-icon>
-                {{ isProfileUpdating ? "Uploading..." : "Image Saved" }}
-            </div>
-        </div>
+            <div class="plain-modal-body">
+                <div class="profile-wrapper" >
+                    <div class="profile-image-column">
+                        <label class="profile-image-upload" title="Upload a Profile Picture">
+                            <wa-skeleton
+                                v-if="profileImageLoading"
+                                effect="pulse"
+                                class="profile-image-skeleton"
+                            ></wa-skeleton>
+                            <wa-avatar
+                                v-else
+                                label="User avatar"
+                                :image.prop="profileImageUrl || ''"
+                                class="profile-image"
+                            ></wa-avatar>
+
+                            <input
+                                type="file"
+                                accept="image/*"
+                                @change="handleFileUpload"
+                                :disabled="isProfileUpdating"
+                                class="profile-image-input"
+                            />
+                        </label>
+                        <div
+                            v-if="isProfileUpdating || profileUpdateSuccess"
+                            class="profile-image-feedback"
+                        >
+                            <wa-spinner v-if="isProfileUpdating"></wa-spinner>
+                            <wa-icon name="check" v-if="profileUpdateSuccess"></wa-icon>
+                            {{ isProfileUpdating ? "Uploading..." : "Image Saved" }}
+                        </div>
+                    </div>
 
 
-        <div class="profile-info-wrapper">
-            <div class="profile-text-info">
-                <h6>Displayed Name: </h6>
-                <input v-model="editedName" required>
+                    <div class="profile-info-wrapper">
+                        <div class="profile-text-info">
+                            <h6>Displayed Name: </h6>
+                            <input v-model="editedName" required>
+                        </div>
+                        <div class="profile-text-info">
+                            <h6>Preferred Pronouns: </h6>
+                            <input v-model="editedPronouns" placeholder="e.g. she/her, they/them">
+                        </div>
+                        <div class="profile-text-info">
+                            <h6>Leave a note to others ~ </h6>
+                            <textarea v-model="editedBio" placeholder="There is nothing here ~"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <p v-if="profileUpdateError" class="form-error">Profile image update failed. Please try again.</p>
+                <p v-if="saveError" class="form-error">Profile save failed. Please try again.</p>
             </div>
-            <div class="profile-text-info">
-                <h6>Leave a note to others ~ </h6>
-                <textarea v-model="editedBio" placeholder="There is nothing here ~"></textarea>
-            </div>
-        </div>
+
+            <footer class="plain-modal-footer profile-modal-footer">
+                <wa-button
+                    appearance="plain"
+                    class="profile-theme-toggle"
+                    :title="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                    :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+                    @click="toggleTheme"
+                >
+                    <wa-icon :name="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
+                    {{ theme === "dark" ? "Light mode" : "Dark mode" }}
+                </wa-button>
+                <wa-button :variant="saveSuccess ? 'success' : 'brand'"
+                    class="profile-save-button"
+                    @click="saveChanges"
+                    :disabled.prop ='(profileName===editedName && (profileBio || "")===editedBio && (profilePronouns || "")===editedPronouns)||isSaving||isProfileUpdating'>
+                    <wa-spinner v-if="isSaving"></wa-spinner>
+                    <wa-icon name="check" v-if="saveSuccess"></wa-icon>
+                    {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
+                </wa-button>
+            </footer>
+        </section>
     </div>
-    <p v-if="profileUpdateError" class="form-error">Profile image update failed. Please try again.</p>
-    <p v-if="saveError" class="form-error">Profile save failed. Please try again.</p>
-    <div class="profile-footer">
-        <wa-button :variant="saveSuccess ? 'success' : 'brand'"
-            @click="saveChanges" 
-            :disabled.prop ='(profileName===editedName && (profileBio || "")===editedBio)||isSaving||isProfileUpdating'>
-            <wa-spinner v-if="isSaving"></wa-spinner>
-            <wa-icon name="check" v-if="saveSuccess"></wa-icon>
-            {{ isSaving ? "Saving..." : saveSuccess ? "Saved" : "Save" }}
-        </wa-button>
-    </div>
-    <button slot="footer" @click="$graffiti.logout($graffitiSession.value)">
-        Log Out
-    </button>
-</wa-drawer>
+</teleport>
 
-
+</template>

@@ -46,6 +46,7 @@ export const useUserStore = defineStore("user", () => {
             // Optional fields depend on action type
             name: { type: "string" },
             content: { type: "string" },
+            pronouns: { type: "string" },
             url: { type: "string" }
           }
         }
@@ -190,6 +191,12 @@ export const useUserStore = defineStore("user", () => {
     userInformation.value.ProfileBio?.value?.content ?? null
   );
 
+  const profilePronouns = computed(() =>
+    userInformation.value.ProfilePronouns?.value?.pronouns
+      ?? userInformation.value.ProfilePronouns?.value?.content
+      ?? null
+  );
+
   // ============================================================
   // ACTIONS - Update Profile Information
   // ============================================================
@@ -285,6 +292,25 @@ export const useUserStore = defineStore("user", () => {
     return true;
   }
 
+  async function updateProfilePronouns(pronouns) {
+    if (!session.value?.actor) return false;
+    const normalizedPronouns = pronouns?.trim() ?? "";
+
+    await graffiti.post({
+      value: {
+        user: session.value.actor,
+        action: 'ProfilePronouns',
+        pronouns: normalizedPronouns,
+        content: normalizedPronouns,
+        published: Date.now(),
+      },
+      channels: [`user:${session.value.actor}:Activities`],
+    },
+    session.value);
+
+    return true;
+  }
+
   /**
    * Handle file input from upload control
    * Extracts file and calls updateProfileImage
@@ -330,6 +356,7 @@ export const useUserStore = defineStore("user", () => {
     profileImageUrl,
     profileImageLoading,
     profileBio,
+    profilePronouns,
     isProfileUpdating,
     profileUpdateError,
     profileUpdateSuccess,
@@ -338,6 +365,7 @@ export const useUserStore = defineStore("user", () => {
     updateProfileName,
     updateProfileImage,
     updateProfileBio,
+    updateProfilePronouns,
     handleFileUpload,
 
   };

@@ -8,7 +8,7 @@
     </li>
 </ul>
 
-<ul v-else>
+<ul v-else class="combined-chat-list">
     <li v-for="chat in chatList" :key="chat.value.chatId">
         <ChatListItem
             :chatId="chat.value.chatId"
@@ -20,7 +20,28 @@
             :latest-message="latestMessageByRootChatId[chat.value.chatId]"
             :is-message-preview-loading="!areChatMessagesReady"
             :now="now"
+            :branches-open="isBranchesOpen(chat.value.chatId)"
+            :branch-count="branchCountByRootId[chat.value.chatId]"
+            :is-selected="chat.value.chatId === activeChatId && !isBranchesOpen(chat.value.chatId)"
             @click="emitUpdateChat(chat.value.chatId, chat.value.displayChatName, chat.value.chatId, chat.value.chatId)"
+            @toggle-branches="toggleBranches(chat.value.chatId)"
         ></ChatListItem>
+        <wa-tree
+            v-if="isBranchesOpen(chat.value.chatId)"
+            class="tree-with-lines chat-list-branch-tree"
+            @click="syncSelectedBranch"
+            @wa-selection-change="syncSelectedBranch"
+        >
+            <BranchNode
+                v-for="node in branchTreesByRootId[chat.value.chatId]"
+                :key="node.id"
+                :node="node"
+                :active-chat-id="activeChatId"
+                @select-chat="emitUpdateChat"
+                @create-branch="emitCreateBranch"
+                @rename-branch="emitRenameBranch"
+                @delete-branch="emitDeleteBranch"
+            />
+        </wa-tree>
     </li>
 </ul>

@@ -1,12 +1,7 @@
 
-import {storeToRefs} from 'pinia';
-import { useChatStore } from "../stores/chat.js";
 import { computed } from "vue";
 
 function setup(props) {
-  const chatStore = useChatStore();
-  const { activeChatId } = storeToRefs(chatStore);
-
   const latestMessageText = computed(() => {
     if (!props.latestMessage) return "No messages yet";
 
@@ -40,15 +35,15 @@ function setup(props) {
   });
 
   return {
-    activeChatId,
     latestMessageText,
     latestMessageAge,
   };
 }
 
 export default async () => ({
-  props: ["chatId", 'chatName', 'chatImageUrl', 'isChatImageLoading', 'previewMembers', 'hasUnread', 'latestMessage', 'isMessagePreviewLoading', 'now'],
+  props: ["chatId", 'chatName', 'chatImageUrl', 'isChatImageLoading', 'previewMembers', 'hasUnread', 'latestMessage', 'isMessagePreviewLoading', 'now', 'branchesOpen', 'branchCount', 'isSelected'],
   setup,
+  emits: ["toggle-branches"],
   template: await fetch(new URL("./chatListItem.html", import.meta.url)).then((r) =>
     r.text(),
   ),

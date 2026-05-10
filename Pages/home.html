@@ -1,85 +1,129 @@
 
-<wa-page :class="{ 'has-chat-detail-sidebar': activeChatId && (showChatInfo || showPinnedMessages) }">
-    <wa-tab-group
-        slot="navigation"
-        withoutScrollControls
-        :active="activeNavigationTab"
-        @wa-tab-show="activeNavigationTab = $event.detail.name">
-        <wa-tab panel="chats">
-            Chats
-        </wa-tab>
+<div
+    class="home-page"
+    :class="{
+        'has-chat-detail-sidebar': activeChatId && (showChatInfo || showPinnedMessages),
+        'has-active-chat': activeChatId,
+        'mobile-profile-view': mobileHomeView === 'profile'
+    }"
+>
+    <aside class="home-menu home-navigation-panel">
+        <div class="mobile-home-chats">
+            <div class="home-navigation-header">
+                <h2>Chats</h2>
+                <div class="chat-list-actions">
+                    <CreateChatButton></CreateChatButton>
+                </div>
+            </div>
 
-        <wa-tab
-            panel="branches"
-            :disabled.prop="activeChatId == null || activeChatId === ''">
-            Branches
-        </wa-tab>
-
-        <wa-tab-panel name="chats">
-            <ChatList @update-active-chat="setActiveChat"></ChatList>
-        </wa-tab-panel>
-
-        <wa-tab-panel name="branches">
-            <ChatTree
+            <ChatList
                 @update-active-chat="setActiveChat"
-                @create-branch="openBranchDrawer"
+                @create-branch="openBranchPanel"
                 @delete-branch="deleteBranch"
                 @rename-branch="openBranchRenameDialog">
-            </ChatTree>
-        </wa-tab-panel>
-
-        <div slot="nav" style="margin-left: auto;" class="chat-list-actions">
-            <CreateChatButton v-if="activeNavigationTab !== 'branches'"></CreateChatButton>
-
-            <template v-else>
-                <wa-button
-                    class="create-chat-button"
-                    title="Create branch"
-                    aria-label="Create branch"
-                    @click="openBranchDrawer()"
-                    :disabled.prop="!activeChatId">
-                    <wa-icon name="code-branch"></wa-icon>
-                </wa-button>
-
-                <wa-drawer label="Create Branch" id="create-branch-drawer" placement="top">
-                    <div class="panel-wrapper">
-                        <h4>New branch</h4>
-                        <p>
-                            Parent: <strong>{{ branchParentName }}</strong>
-                        </p>
-                        <input
-                            v-model="branchName"
-                            placeholder="New branch name"
-                            maxlength="30"
-                            type="text"
-                            @keydown.enter="createBranchUnderActiveChat"
-                        />
-                        <p v-if="createError" class="form-error">Branch creation failed. Please try again.</p>
-                    </div>
-
-                    <wa-button
-                        slot="footer"
-                        variant="brand"
-                        @click="createBranchUnderActiveChat"
-                        :disabled.prop="isCreating || !branchName.trim() || !activeChatId"
-                    >
-                        <wa-spinner v-if="isCreating"></wa-spinner>
-                        <wa-icon name="check" v-else-if="createSuccess"></wa-icon>
-                        <wa-icon name="code-branch" v-else></wa-icon>
-                        {{ isCreating ? "Creating..." : createSuccess ? "Branch Created" : "Create Branch" }}
-                    </wa-button>
-                </wa-drawer>
-            </template>
+            </ChatList>
         </div>
-    </wa-tab-group>
 
-    <div slot='navigation-footer'>
-        <Profile></Profile>
+        <div class="mobile-home-profile-panel">
+            <Profile embedded></Profile>
+        </div>
+
+        <div class="home-navigation-footer">
+            <div class="desktop-navigation-profile">
+                <Profile></Profile>
+            </div>
+
+            <nav class="mobile-action-bar" aria-label="Mobile navigation">
+                <button
+                    type="button"
+                    class="mobile-action-button"
+                    :class="{ active: mobileHomeView === 'chats' }"
+                    :aria-pressed="mobileHomeView === 'chats'"
+                    @click="openMobileChats"
+                >
+                    <wa-icon name="comments"></wa-icon>
+                    <span>Chats</span>
+                </button>
+                <button
+                    type="button"
+                    class="mobile-action-button"
+                    :class="{ active: mobileHomeView === 'profile' }"
+                    :aria-pressed="mobileHomeView === 'profile'"
+                    @click="openMobileProfile"
+                >
+                    <wa-icon name="user"></wa-icon>
+                    <span>Profile</span>
+                </button>
+            </nav>
+        </div>
+    </aside>
+
+    <div
+        v-if="showBranchPanel"
+        class="plain-modal-backdrop"
+        @click.self="closeBranchPanel"
+    >
+        <section class="plain-modal" role="dialog" aria-modal="true" aria-labelledby="create-branch-title">
+            <header class="plain-modal-header">
+                <h2 id="create-branch-title">Create Branch</h2>
+                <button
+                    type="button"
+                    class="plain-icon-button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="closeBranchPanel"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </button>
+            </header>
+
+            <div class="panel-wrapper">
+                <h4>New branch</h4>
+                <p>
+                    Parent: <strong>{{ branchParentName }}</strong>
+                </p>
+                <input
+                    v-model="branchName"
+                    placeholder="New branch name"
+                    maxlength="30"
+                    type="text"
+                    @keydown.enter="createBranchUnderActiveChat"
+                />
+                <p v-if="createError" class="form-error">Branch creation failed. Please try again.</p>
+            </div>
+
+            <footer class="plain-modal-footer">
+                <wa-button
+                    variant="brand"
+                    @click="createBranchUnderActiveChat"
+                    :disabled.prop="isCreating || !branchName.trim() || !hasBranchCreateTarget"
+                >
+                    <wa-spinner v-if="isCreating"></wa-spinner>
+                    <wa-icon name="check" v-else-if="createSuccess"></wa-icon>
+                    <wa-icon name="code-branch" v-else></wa-icon>
+                    {{ isCreating ? "Creating..." : createSuccess ? "Branch Created" : "Create Branch" }}
+                </wa-button>
+            </footer>
+        </section>
     </div>
 
-    <div slot="main-header">
+    <section class="home-main-shell">
+    <header class="home-main-header">
+        <wa-button
+            v-if="activeChatId"
+            appearance="plain"
+            class="mobile-chat-back-button"
+            title="Back to chats"
+            aria-label="Back to chats"
+            @click="openMobileChatList"
+        >
+            <wa-icon name="arrow-left"></wa-icon>
+        </wa-button>
         <div v-if="activeChatId" class="chat-name-wrapper">
-            <wa-breadcrumb class="chat-breadcrumb">
+            <div v-if="isMobilePortrait" class="mobile-chat-title">
+                {{ mobileChatHeaderTitle }}
+            </div>
+            <wa-breadcrumb v-else class="chat-breadcrumb">
                 <wa-breadcrumb-item
                     v-for="(item, index) in chatBreadcrumb"
                     :key="item.isEllipsis ? 'ellipsis' : item.id"
@@ -128,7 +172,7 @@
             </wa-breadcrumb>
         </div>
         <h1 v-else>Welcome to Chatree!</h1>
-        <div v-if="activeChatId" slot="main-header-actions" class="main-header-actions">
+        <div v-if="activeChatId" class="main-header-actions">
             <wa-button
                 appearance="plain"
                 class="timestamp-column-toggle"
@@ -159,13 +203,13 @@
                 <wa-icon name="circle-info"></wa-icon>
             </wa-button>
         </div>
-    </div>
+    </header>
 
-    <div slot="main-footer">
+    <footer v-if="activeChatId" class="home-main-footer">
         <ChatInput></ChatInput>
-    </div>
+    </footer>
 
-    <main>
+    <main class="home-main-content">
         <section v-if="activeChatId" class="chat-messages-pane">
             <ChatFlow :show-timestamp-column="showTimestampColumn"/>
         </section>
@@ -173,10 +217,16 @@
             <ChatFlow :show-timestamp-column="showTimestampColumn"/>
         </section>
     </main>
+    </section>
+
+    <div
+        v-if="activeChatId && (showChatInfo || showPinnedMessages)"
+        class="mobile-detail-drawer-backdrop"
+        @click="closeDetailPanels"
+    ></div>
 
     <aside
         v-if="activeChatId && showChatInfo"
-        slot="aside"
         class="chat-detail-sidebar"
     >
         <div class="chat-detail-sidebar-header">
@@ -299,11 +349,45 @@
                     <ChatMembers></ChatMembers>
                 </div>
             </section>
+
+            <section class="chat-info-section">
+                <button
+                    type="button"
+                    class="chat-info-section-trigger"
+                    :aria-expanded="isMediaOpen"
+                    @click="isMediaOpen = !isMediaOpen"
+                >
+                    <span>
+                        <wa-icon name="images"></wa-icon>
+                        Recent media
+                    </span>
+                    <wa-icon name="chevron-left" class="chat-info-section-chevron"></wa-icon>
+                </button>
+
+                <div v-if="isMediaOpen" class="chat-info-section-body">
+                    <div v-if="recentMedia.length" class="recent-media-grid">
+                        <div
+                            v-for="media in recentMedia"
+                            :key="media.key"
+                            class="recent-media-item"
+                            :title="media.name"
+                        >
+                            <MediaAttachment
+                                :attachment="media"
+                                compact
+                            ></MediaAttachment>
+                        </div>
+                    </div>
+                    <div v-else class="recent-media-empty">
+                        No media posted yet.
+                    </div>
+                </div>
+            </section>
         </div>
 
         <div class="chat-info-leave">
             <wa-button
-                @click="leaveActiveChat(activeChatRootId)"
+                @click="openLeaveChatDialog"
                 :variant="leaveSuccess ? 'brand' : 'danger'"
                 :disabled.prop="isLeaving"
             >
@@ -316,7 +400,6 @@
 
     <aside
         v-if="activeChatId && showPinnedMessages"
-        slot="aside"
         class="chat-detail-sidebar pinned-messages-sidebar"
     >
         <div class="chat-detail-sidebar-header">
@@ -461,4 +544,111 @@
         </form>
     </div>
 
-</wa-page>
+    <div
+        v-if="showDeleteBranchDialog"
+        class="chat-rename-modal-backdrop"
+        @click.self="closeDeleteBranchDialog"
+    >
+        <div class="chat-rename-modal">
+            <div class="chat-rename-modal-header">
+                <h2>Delete branch</h2>
+                <wa-button
+                    appearance="plain"
+                    class="chat-column-close"
+                    type="button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="closeDeleteBranchDialog"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </wa-button>
+            </div>
+
+            <p>
+                Delete <strong>{{ branchPendingDelete?.name }}</strong>?
+            </p>
+
+            <p v-if="branchDeleteRequiresConfirmation" class="settings-warning">
+                This branch has {{ branchPendingDeleteSubBranchCount }}
+                {{ branchPendingDeleteSubBranchCount === 1 ? "sub-branch" : "sub-branches" }}.
+                Deleting it will also delete every branch underneath it. This cannot be undone.
+            </p>
+
+            <label v-if="branchDeleteRequiresConfirmation" class="settings-field">
+                Type DELETE to confirm
+                <input
+                    v-model="branchDeleteConfirmation"
+                    autocomplete="off"
+                    spellcheck="false"
+                    type="text"
+                />
+            </label>
+
+            <div class="chat-rename-modal-actions">
+                <wa-button
+                    appearance="plain"
+                    type="button"
+                    @click="closeDeleteBranchDialog"
+                >
+                    Cancel
+                </wa-button>
+
+                <wa-button
+                    variant="danger"
+                    type="button"
+                    @click="confirmDeleteBranch"
+                    :disabled.prop="!canConfirmBranchDelete"
+                >
+                    Delete branch
+                </wa-button>
+            </div>
+        </div>
+    </div>
+
+    <div
+        v-if="showLeaveChatDialog"
+        class="chat-rename-modal-backdrop"
+        @click.self="showLeaveChatDialog = false"
+    >
+        <div class="chat-rename-modal">
+            <div class="chat-rename-modal-header">
+                <h2>Leave chat</h2>
+                <wa-button
+                    appearance="plain"
+                    class="chat-column-close"
+                    type="button"
+                    title="Close"
+                    aria-label="Close"
+                    @click="showLeaveChatDialog = false"
+                >
+                    <wa-icon name="xmark"></wa-icon>
+                </wa-button>
+            </div>
+
+            <p>
+                Leave <strong>{{ chatPendingLeave?.name }}</strong>?
+            </p>
+
+            <div class="chat-rename-modal-actions">
+                <wa-button
+                    appearance="plain"
+                    type="button"
+                    @click="showLeaveChatDialog = false"
+                >
+                    Cancel
+                </wa-button>
+
+                <wa-button
+                    variant="danger"
+                    type="button"
+                    @click="confirmLeaveChat"
+                    :disabled.prop="isLeaving"
+                >
+                    <wa-spinner v-if="isLeaving"></wa-spinner>
+                    Leave chat
+                </wa-button>
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -84,6 +84,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
             user: { type: "string" },
             name: { type: "string" },
             content: { type: "string" },
+            pronouns: { type: "string" },
             url: { type: "string" },
           },
         },
@@ -99,6 +100,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       profiles[user] = {
         name: handleCache.value.get(user) ?? user,
         bio: null,
+        pronouns: null,
         avatarRawUrl: null,
         avatarUrl: null,
         avatarIsLoading: false,
@@ -108,13 +110,14 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
     }
 
     for (const obj of profileObjects.value) {
-      const { user, action, name, content, url, published } = obj.value;
+      const { user, action, name, content, pronouns, url, published } = obj.value;
       if (!user) continue;
 
       if (!profiles[user]) {
         profiles[user] = {
           name: handleCache.value.get(user) ?? user,
           bio: null,
+          pronouns: null,
           avatarRawUrl: null,
           avatarUrl: null,
           avatarIsLoading: false,
@@ -134,6 +137,11 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       if (action === "ProfileBio" && (!profile._ts.bio || profile._ts.bio < published)) {
         profile.bio = content;
         profile._ts.bio = published;
+      }
+
+      if (action === "ProfilePronouns" && (!profile._ts.pronouns || profile._ts.pronouns < published)) {
+        profile.pronouns = pronouns ?? content ?? null;
+        profile._ts.pronouns = published;
       }
 
       if (action === "ProfileImage" && (!profile._ts.avatarUrl || profile._ts.avatarUrl < published)) {
@@ -206,6 +214,7 @@ export const useProfileCacheStore = defineStore("profileCache", () => {
       ?? {
         name: handleCache.value.get(user) ?? user,
         bio: null,
+        pronouns: null,
         avatarRawUrl: null,
         avatarUrl: null,
         avatarIsLoading: false,

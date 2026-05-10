@@ -74,6 +74,24 @@ function setup() {
             chatId: { type: "string" },
             clientId: { type: "string" },
             content: { type: "string" },
+            media: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["url", "type", "mimeType", "name", "size"],
+                properties: {
+                  url: { type: "string" },
+                  type: { type: "string" },
+                  mimeType: { type: "string" },
+                  name: { type: "string" },
+                  size: { type: "number" },
+                  originalSize: { type: "number" },
+                  width: { type: "number" },
+                  height: { type: "number" },
+                  duration: { type: "number" },
+                },
+              },
+            },
             published: { type: "number" },
             replyTo: { type: "string" },
             replyToContent: { type: "string" },
@@ -96,6 +114,7 @@ function setup() {
         chatId: message.chatId,
         clientId: message.clientId,
         content: message.content,
+        media: message.media ?? [],
         published: message.published,
         replyTo: message.replyTo,
         replyToContent: message.replyToContent,
@@ -304,7 +323,7 @@ function setup() {
 
     chatStore.setReplyTarget({
       id: message.messageId,
-      content: message.value.content,
+      content: message.value.content || (message.value.media?.length ? "Media" : ""),
       user: message.value.user,
       username: message.profile?.name,
     });

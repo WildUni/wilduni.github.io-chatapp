@@ -1,5 +1,5 @@
 <div class="chat-list-item"  
-  :class="{ selected: chatId === activeChatId }">
+  :class="{ selected: isSelected }">
   <wa-skeleton
     v-if="isChatImageLoading"
     effect="pulse"
@@ -45,4 +45,17 @@
       <span v-if="latestMessageAge" class="chatListItem-time">{{ latestMessageAge }}</span>
     </div>
   </div>
+  <wa-button
+    appearance="plain"
+    class="chat-branches-toggle"
+    :title="branchesOpen ? 'Hide branches' : 'Show branches'"
+    :aria-label="branchesOpen ? 'Hide branches' : 'Show branches'"
+    :aria-expanded.prop="branchesOpen"
+    :aria-pressed.prop="branchesOpen"
+    :class="{ active: branchesOpen }"
+    @click.stop="$emit('toggle-branches')"
+  >
+    <wa-icon name="code-branch"></wa-icon>
+    <span v-if="branchCount" class="chat-branches-count">{{ branchCount }}</span>
+  </wa-button>
 </div>

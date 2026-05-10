@@ -1,16 +1,16 @@
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   useGraffitiSession,
   useGraffitiDiscover,
 } from "@graffiti-garden/wrapper-vue";
 import loadChatList from "../Components/chatList.js";
-import loadChatTree from "../Components/chatTree.js";
 import loadChatInput from "../Components/chatInput.js";
 import loadChatFlow from "../Components/chatFlow.js";
 import loadChatMembers from "../Components/chatMembers.js";
 import loadProfile from "../Components/profile.js"
 import loadCreateChatButton from '../Components/createChat.js'
+import loadMediaAttachment from "../Components/mediaAttachment.js";
 
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
@@ -38,21 +38,62 @@ function setup() {
     isLeaving,
     leaveSuccess} = storeToRefs(chatStore)
   const editedActiveChatName = ref("");
-  const activeNavigationTab = ref("chats");
   const branchName = ref("");
   const branchParent = ref(null);
+  const showBranchPanel = ref(false);
   const showTimestampColumn = ref(false);
   const showChatInfo = ref(false);
   const showPinnedMessages = ref(false);
   const isCustomizeChatOpen = ref(false);
   const isMembersOpen = ref(false);
+  const isMediaOpen = ref(false);
   const showRenameDialog = ref(false);
   const showBranchRenameDialog = ref(false);
+  const showDeleteBranchDialog = ref(false);
+  const showLeaveChatDialog = ref(false);
   const branchBeingRenamed = ref(null);
+  const branchPendingDelete = ref(null);
+  const branchDeleteConfirmation = ref("");
+  const chatPendingLeave = ref(null);
   const editedBranchName = ref("");
+  const mobileHomeView = ref("chats");
+  const isMobilePortrait = ref(
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches
+      : false
+  );
+  const mobilePortraitQuery = typeof window !== "undefined"
+    ? window.matchMedia("(max-width: 760px) and (orientation: portrait)")
+    : null;
+
+  function updateMobilePortraitState(event) {
+    isMobilePortrait.value = event.matches;
+  }
+
+  if (mobilePortraitQuery) {
+    if (mobilePortraitQuery.addEventListener) {
+      mobilePortraitQuery.addEventListener("change", updateMobilePortraitState);
+    } else {
+      mobilePortraitQuery.addListener(updateMobilePortraitState);
+    }
+  }
+
+  onBeforeUnmount(() => {
+    if (!mobilePortraitQuery) return;
+
+    if (mobilePortraitQuery.removeEventListener) {
+      mobilePortraitQuery.removeEventListener("change", updateMobilePortraitState);
+    } else {
+      mobilePortraitQuery.removeListener(updateMobilePortraitState);
+    }
+  });
 
   const branchParentName = computed(() => {
     return branchParent.value?.name || activeChatName.value || "No chat selected";
+  });
+
+  const hasBranchCreateTarget = computed(() => {
+    return Boolean(branchParent.value?.id || activeChatId.value);
   });
 
   const branchChannels = computed(() => {
@@ -98,6 +139,24 @@ function setup() {
             chatId: { type: "string" },
             clientId: { type: "string" },
             content: { type: "string" },
+            media: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["url", "type", "mimeType", "name", "size"],
+                properties: {
+                  url: { type: "string" },
+                  type: { type: "string" },
+                  mimeType: { type: "string" },
+                  name: { type: "string" },
+                  size: { type: "number" },
+                  originalSize: { type: "number" },
+                  width: { type: "number" },
+                  height: { type: "number" },
+                  duration: { type: "number" },
+                },
+              },
+            },
             published: { type: "number" },
             user: { type: "string" },
           },
@@ -168,8 +227,31 @@ function setup() {
       .sort((a, b) => b.value.published - a.value.published)
   );
 
+  const recentMedia = computed(() =>
+    activeMessages.value
+      .flatMap(message =>
+        (message.value.media ?? []).map((attachment, index) => ({
+          ...attachment,
+          key: `${message.url || message.value.clientId || message.value.published}:${attachment.url}:${index}`,
+          messageId: getMessageId(message),
+          messageContent: message.value.content,
+          published: message.value.published,
+          user: message.value.user,
+          profile: profileCache.getProfile(message.value.user),
+        }))
+      )
+      .sort((a, b) => b.published - a.published)
+      .slice(0, 12)
+  );
+
   watch(
     () => pinnedMessages.value.map(message => message.value.user),
+    (users) => profileCache.ensureUsers(users),
+    { immediate: true }
+  );
+
+  watch(
+    () => recentMedia.value.map(media => media.user),
     (users) => profileCache.ensureUsers(users),
     { immediate: true }
   );
@@ -383,6 +465,56 @@ function setup() {
     }));
   });
 
+  const mobileChatHeaderTitle = computed(() => {
+    const rootName = activeChatRootName.value || activeChatName.value || "Untitled chat";
+
+    if (!activeChatId.value || activeChatId.value === activeChatRootId.value) {
+      return rootName;
+    }
+
+    const activeNode = getBreadcrumbNode(activeChatId.value);
+    const branchName = activeNode?.name || activeChatName.value || "Untitled branch";
+
+    return branchName && branchName !== rootName
+      ? `${rootName} (${branchName})`
+      : rootName;
+  });
+
+  const branchPendingDeleteSubtree = computed(() => {
+    const branch = branchPendingDelete.value;
+    if (!branch) return [];
+
+    const descendants = [];
+    const visited = new Set();
+
+    function collect(node) {
+      if (!node?.id || visited.has(node.id)) return;
+
+      visited.add(node.id);
+      descendants.push(node);
+
+      for (const child of node.children ?? []) {
+        collect(child);
+      }
+    }
+
+    collect(branch);
+    return descendants;
+  });
+
+  const branchPendingDeleteSubBranchCount = computed(() =>
+    Math.max(0, branchPendingDeleteSubtree.value.length - 1)
+  );
+
+  const branchDeleteRequiresConfirmation = computed(() =>
+    branchPendingDeleteSubBranchCount.value > 0
+  );
+
+  const canConfirmBranchDelete = computed(() =>
+    !branchDeleteRequiresConfirmation.value ||
+    branchDeleteConfirmation.value.trim() === "DELETE"
+  );
+
   watch(
     activeChatName,
     (name) => {
@@ -394,13 +526,10 @@ function setup() {
   watch(
     activeChatId,
     (chatId) => {
-      if (!chatId && activeNavigationTab.value === "branches") {
-        activeNavigationTab.value = "chats";
-      }
-
       if (!chatId) {
         showChatInfo.value = false;
         showPinnedMessages.value = false;
+        mobileHomeView.value = "chats";
       }
     }
   );
@@ -425,12 +554,53 @@ function setup() {
     setActiveChat(null, null, null);
   }
 
+  function openMobileChats() {
+    mobileHomeView.value = "chats";
+  }
+
+  function openMobileProfile() {
+    mobileHomeView.value = "profile";
+  }
+
+  function openMobileChatList() {
+    closeDetailPanels();
+    router.push({ name: "home" });
+  }
+
+  function closeDetailPanels() {
+    showChatInfo.value = false;
+    showPinnedMessages.value = false;
+  }
+
   /**
    * Leave active chat and navigate home
    */
   async function leaveActiveChat(chatId) {
     await chatStore.leaveChat(chatId);
     router.push({ name: "home" });
+  }
+
+  function openLeaveChatDialog() {
+    if (!activeChatRootId.value) return;
+
+    chatPendingLeave.value = {
+      id: activeChatRootId.value,
+      name: activeChatRootName.value,
+    };
+    showLeaveChatDialog.value = true;
+  }
+
+  async function confirmLeaveChat() {
+    const chat = chatPendingLeave.value;
+    if (!chat?.id) return;
+
+    const success = await chatStore.leaveChat(chat.id);
+
+    if (success) {
+      showLeaveChatDialog.value = false;
+      chatPendingLeave.value = null;
+      router.push({ name: "home" });
+    }
   }
 
   async function renameActiveChat() {
@@ -485,21 +655,23 @@ function setup() {
     await chatStore.handleChatImageUpload(event, activeChatRootId.value);
   }
 
-  async function openBranchDrawer(parent = null) {
+  async function openBranchPanel(parent = null) {
     branchParent.value = parent;
-    await nextTick();
+    showBranchPanel.value = true;
+  }
 
-    const drawer = document.querySelector("#create-branch-drawer");
-    if (drawer) drawer.open = true;
+  function closeBranchPanel() {
+    showBranchPanel.value = false;
   }
 
   async function createBranchUnderActiveChat() {
     const name = branchName.value.trim();
 
-    if (!name || !activeChatId.value || !activeChatRootId.value) return;
-
     const parentId = branchParent.value?.id || activeChatId.value;
     const rootId = branchParent.value?.rootChatId || activeChatRootId.value;
+
+    if (!name || !parentId || !rootId) return;
+
     const previousChatName = newChatName.value;
     newChatName.value = name;
 
@@ -512,8 +684,7 @@ function setup() {
       if (success) {
         branchName.value = "";
         branchParent.value = null;
-        const drawer = document.querySelector("#create-branch-drawer");
-        if (drawer) drawer.open = false;
+        closeBranchPanel();
       }
     } finally {
       newChatName.value = previousChatName;
@@ -523,14 +694,37 @@ function setup() {
   async function deleteBranch(branch) {
     if (!branch?.id || branch.id === branch.rootChatId) return;
 
-    const success = await chatStore.deleteBranch(
-      branch.id,
-      branch.rootChatId,
-      branch.parentChatId,
-      branch.name
-    );
+    branchPendingDelete.value = branch;
+    branchDeleteConfirmation.value = "";
+    showDeleteBranchDialog.value = true;
+  }
 
-    if (success && activeChatId.value === branch.id) {
+  function closeDeleteBranchDialog() {
+    showDeleteBranchDialog.value = false;
+    branchPendingDelete.value = null;
+    branchDeleteConfirmation.value = "";
+  }
+
+  async function confirmDeleteBranch() {
+    const branch = branchPendingDelete.value;
+
+    if (!branch?.id || branch.id === branch.rootChatId) return;
+    if (!canConfirmBranchDelete.value) return;
+
+    const branchesToDelete = branchPendingDeleteSubtree.value;
+    const deleteResults = await Promise.all(
+      branchesToDelete.map(branchNode =>
+        chatStore.deleteBranch(
+          branchNode.id,
+          branchNode.rootChatId,
+          branchNode.parentChatId,
+          branchNode.name
+        )
+      )
+    );
+    const success = deleteResults.every(Boolean);
+
+    if (success && branchesToDelete.some(branchNode => branchNode.id === activeChatId.value)) {
       const rootChat = chatList.value.find(
         chat => chat.value.chatId === branch.rootChatId
       );
@@ -541,6 +735,10 @@ function setup() {
         branch.rootChatId,
         branch.rootChatId
       );
+    }
+
+    if (success) {
+      closeDeleteBranchDialog();
     }
   }
 
@@ -571,7 +769,7 @@ function setup() {
    * - Preserve the known root ID for branch chats, which are not in chatList
    */
   watch(
-    () => [route.params.chatId, chatList.value],
+    () => [route.params.chatId, chatList.value, isMobilePortrait.value],
     ([chatId, chats]) => {
       const routeChatId = chatId || null;
       const knownActiveName = activeChatName.value;
@@ -582,6 +780,13 @@ function setup() {
       activeChatId.value = routeChatId;
 
       if (!routeChatId) {
+        const firstChat = chats?.[0]?.value;
+
+        if (firstChat?.chatId && !isMobilePortrait.value) {
+          router.replace({ name: "chat", params: { chatId: firstChat.chatId } });
+          return;
+        }
+
         activeChatName.value = null;
         activeChatRootId.value = null;
         activeChatParentId.value = null;
@@ -612,6 +817,13 @@ function setup() {
   return {
     setActiveChat,
     clearActive,
+    mobileHomeView,
+    isMobilePortrait,
+    mobileChatHeaderTitle,
+    openMobileChats,
+    openMobileProfile,
+    openMobileChatList,
+    closeDetailPanels,
     activeChatId,
     activeChatName,
     activeChatRootId,
@@ -620,16 +832,26 @@ function setup() {
     activeChatAvatar,
     infoMembers,
     previewMembers,
-    activeNavigationTab,
     branchName,
     branchParentName,
+    showBranchPanel,
+    hasBranchCreateTarget,
     chatBreadcrumb,
     isCreating,
     createError,
     createSuccess,
-    openBranchDrawer,
+    openBranchPanel,
+    closeBranchPanel,
     createBranchUnderActiveChat,
     deleteBranch,
+    confirmDeleteBranch,
+    branchPendingDelete,
+    branchPendingDeleteSubBranchCount,
+    branchDeleteRequiresConfirmation,
+    branchDeleteConfirmation,
+    canConfirmBranchDelete,
+    showDeleteBranchDialog,
+    closeDeleteBranchDialog,
     openBranchRenameDialog,
     renameSelectedBranch,
     editedBranchName,
@@ -642,6 +864,10 @@ function setup() {
     createNewChat: chatStore.createNewChat,
     newChatName,
     leaveActiveChat,
+    openLeaveChatDialog,
+    confirmLeaveChat,
+    chatPendingLeave,
+    showLeaveChatDialog,
     isLeaving,
     leaveSuccess,
     showTimestampColumn,
@@ -653,9 +879,11 @@ function setup() {
     pinnedMessages,
     isCustomizeChatOpen,
     isMembersOpen,
+    isMediaOpen,
     showRenameDialog,
     openRenameDialog,
-    navigateBreadcrumb
+    navigateBreadcrumb,
+    recentMedia
   }
 }
 
@@ -663,12 +891,12 @@ export default async () => ({
   setup,
   components: {
     ChatList: await loadChatList(),
-    ChatTree: await loadChatTree(),
     ChatInput: await loadChatInput(),
     ChatFlow: await loadChatFlow(),
     ChatMembers: await loadChatMembers(),
     Profile: await loadProfile(),
     CreateChatButton: await loadCreateChatButton(),
+    MediaAttachment: await loadMediaAttachment(),
   },
   template: await fetch(new URL("./home.html", import.meta.url)).then((r) =>
     r.text(),

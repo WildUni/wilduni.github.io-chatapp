@@ -1,0 +1,79 @@
+<div
+    class="media-attachment"
+    :class="{ 'media-attachment-compact': compact, 'media-attachment-error': loadError }"
+    role="button"
+    tabindex="0"
+    :style="attachmentStyle"
+    :aria-label="`Open ${displayName}`"
+    @click.stop="openLightbox"
+    @keydown.enter.stop.prevent="openLightbox"
+    @keydown.space.stop.prevent="openLightbox"
+>
+    <wa-skeleton
+        v-if="isLoading"
+        effect="pulse"
+        class="media-attachment-skeleton"
+    ></wa-skeleton>
+
+    <img
+        v-else-if="sourceUrl && isImage"
+        :src="sourceUrl"
+        :alt="displayName"
+        class="media-attachment-image"
+        loading="lazy"
+    />
+
+    <video
+        v-else-if="sourceUrl && isVideo"
+        :src="sourceUrl"
+        class="media-attachment-video"
+        muted
+        playsinline
+        preload="metadata"
+    ></video>
+
+    <div v-if="sourceUrl && isVideo && !isLoading" class="media-play-indicator" aria-hidden="true">
+        <wa-icon name="play"></wa-icon>
+    </div>
+
+    <div v-if="!isLoading && (!sourceUrl || (!isImage && !isVideo) || loadError)" class="media-attachment-fallback">
+        <wa-icon :name="isVideo ? 'video' : 'image'"></wa-icon>
+        <span>{{ loadError ? "Could not load media" : displayName }}</span>
+    </div>
+</div>
+
+<teleport to="body">
+    <div
+        v-if="isLightboxOpen"
+        class="media-lightbox"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="displayName"
+        @click.self="closeLightbox"
+    >
+        <button
+            type="button"
+            class="media-lightbox-close"
+            title="Close media"
+            aria-label="Close media"
+            @click="closeLightbox"
+        >
+            <wa-icon name="xmark"></wa-icon>
+        </button>
+
+        <img
+            v-if="sourceUrl && isImage"
+            :src="sourceUrl"
+            :alt="displayName"
+            class="media-lightbox-content media-lightbox-image"
+        />
+
+        <video
+            v-else-if="sourceUrl && isVideo"
+            :src="sourceUrl"
+            class="media-lightbox-content media-lightbox-video"
+            controls
+            playsinline
+        ></video>
+    </div>
+</teleport>

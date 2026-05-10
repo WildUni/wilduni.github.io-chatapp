@@ -1,4 +1,5 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import loadMediaAttachment from "./mediaAttachment.js";
 
 function setup() {
     const messageWrapper = ref(null);
@@ -44,19 +45,75 @@ function setup() {
 
     onBeforeUnmount(removeOutsideClickListener);
 
+    function normalizeHref(url) {
+        return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+    }
+
+    function linkifyText(text) {
+        if (!text) return [];
+
+        const tokens = [];
+        const urlPattern = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+        let lastIndex = 0;
+        let match;
+
+        while ((match = urlPattern.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                tokens.push({
+                    type: "text",
+                    text: text.slice(lastIndex, match.index),
+                });
+            }
+
+            const rawUrl = match[0];
+            const trailing = rawUrl.match(/[.,!?;:)]*$/)?.[0] ?? "";
+            const cleanUrl = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+
+            if (cleanUrl) {
+                tokens.push({
+                    type: "link",
+                    text: cleanUrl,
+                    href: normalizeHref(cleanUrl),
+                });
+            }
+
+            if (trailing) {
+                tokens.push({
+                    type: "text",
+                    text: trailing,
+                });
+            }
+
+            lastIndex = match.index + rawUrl.length;
+        }
+
+        if (lastIndex < text.length) {
+            tokens.push({
+                type: "text",
+                text: text.slice(lastIndex),
+            });
+        }
+
+        return tokens;
+    }
+
     return {
         messageWrapper,
         isActionTrayPinned,
         isProfileCardOpen,
         toggleActionTray,
         toggleProfileCard,
+        linkifyText,
     }
 }
 
 export default async () => ({
-    props: ["username", "profileBio", "messageContent", "avatarUrl", "avatarIsLoading", "published", "isOwnMessage", "showName", "showAvatar", "isPending", "pendingStatus", "messageId", "likeCount", "isLiked", "isPinned", "replyTo", "replyToContent"],
+    props: ["username", "profileBio", "profilePronouns", "messageContent", "mediaAttachments", "avatarUrl", "avatarIsLoading", "published", "isOwnMessage", "showName", "showAvatar", "isPending", "pendingStatus", "messageId", "likeCount", "isLiked", "isPinned", "replyTo", "replyToContent"],
     emits: ["toggle-like", "toggle-pin", "reply", "open-reply", "mention-user"],
     setup,
+    components: {
+        MediaAttachment: await loadMediaAttachment(),
+    },
     template: await fetch(new URL("./message.html", import.meta.url)).then((r) =>
         r.text(),
     ),

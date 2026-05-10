@@ -37,6 +37,7 @@
             ></wa-avatar>
             <div class="message-profile-card-copy">
                 <strong>{{ username }}</strong>
+                <span v-if="profilePronouns" class="message-profile-card-pronouns">{{ profilePronouns }}</span>
                 <p>{{ profileBio || "No bio yet." }}</p>
             </div>
         </div>
@@ -53,7 +54,10 @@
             {{username}}
         </button>
 
-        <wa-card class="card-header">
+        <wa-card
+            class="card-header"
+            :class="{ 'media-message-card': mediaAttachments?.length }"
+        >
             <div v-if="isPinned" class="message-pin-badge" title="Pinned">
                 <wa-icon name="thumbtack"></wa-icon>
             </div>
@@ -66,8 +70,29 @@
             >
                 {{ replyToContent }}
             </button>
-            <div class="message-body-content">
-                {{messageContent}}
+            <div v-if="messageContent" class="message-body-content">
+                <template v-for="(part, index) in linkifyText(messageContent)" :key="index">
+                    <a
+                        v-if="part.type === 'link'"
+                        :href="part.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="message-link"
+                        @click.stop
+                    >{{ part.text }}</a>
+                    <span v-else>{{ part.text }}</span>
+                </template>
+            </div>
+            <div
+                v-if="mediaAttachments?.length"
+                class="message-media-grid"
+                :class="{ 'message-media-grid-single': mediaAttachments.length === 1 }"
+            >
+                <MediaAttachment
+                    v-for="attachment in mediaAttachments"
+                    :key="attachment.url || attachment.previewUrl || attachment.name"
+                    :attachment="attachment"
+                ></MediaAttachment>
             </div>
             <div class="message-hover-actions">
                 <wa-button

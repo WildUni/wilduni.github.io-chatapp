@@ -15,7 +15,7 @@
             <wa-icon name="xmark"></wa-icon>
         </wa-button>
     </div>
-    <wa-input placeholder="Your Message..." 
+    <wa-input placeholder="Message" 
     ref="messageInput"
     with-clear 
     :value='myMessage' 
@@ -23,8 +23,57 @@
     @keydown.enter="sendMessage"
     :disabled.prop="isSending"
     class="message-input"></wa-input>
-    <button @click="sendMessage" :disabled="!myMessage.length || isSending">
+    <label
+        class="media-upload-button"
+        :class="{ 'is-disabled': isSending || selectedMedia.length >= 4 }"
+        title="Attach image or video"
+        aria-label="Attach image or video"
+    >
+        <wa-icon name="paperclip"></wa-icon>
+        <input
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            :disabled="isSending || selectedMedia.length >= 4"
+            @change="handleMediaSelect"
+        />
+    </label>
+    <button @click="sendMessage" :disabled="(!myMessage.trim().length && selectedMedia.length === 0) || isSending">
         {{ isSending ? "Sending..." : "Send" }}
     </button>
+    <div v-if="selectedMedia.length" class="composer-media-list">
+        <div
+            v-for="item in selectedMedia"
+            :key="item.id"
+            class="composer-media-item"
+        >
+            <img
+                v-if="item.kind === 'image'"
+                :src="item.previewUrl"
+                :alt="item.file.name"
+                class="composer-media-thumb"
+            />
+            <video
+                v-else
+                :src="item.previewUrl"
+                class="composer-media-thumb"
+                muted
+                preload="metadata"
+            ></video>
+            <div class="composer-media-meta">
+                <strong>{{ item.file.name }}</strong>
+                <span>{{ formatBytes(item.file.size) }}</span>
+            </div>
+            <button
+                type="button"
+                class="composer-media-remove"
+                title="Remove attachment"
+                aria-label="Remove attachment"
+                @click="removeSelectedMedia(item.id)"
+            >
+                <wa-icon name="xmark"></wa-icon>
+            </button>
+        </div>
+    </div>
 </div>
 <p v-if="sendError" class="error">{{ sendError }}</p>

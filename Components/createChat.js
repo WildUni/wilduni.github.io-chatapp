@@ -1,3 +1,4 @@
+import { ref } from "vue";
 import { storeToRefs } from "pinia"
 import { useChatStore } from "../stores/chat.js";
 
@@ -19,36 +20,38 @@ function setup() {
     joinError,
     joinSuccess,
   } = storeToRefs(chatStore);
+  const showCreateChatPanel = ref(false);
+  const showJoinChatPanel = ref(false);
 
-  /**
-   * Close a chat action drawer
-   */
-  function closeDrawer(drawerId) {
-    const drawer = document.querySelector(drawerId);
-    if (drawer) drawer.open = false;
+  function closeCreateChatPanel() {
+    showCreateChatPanel.value = false;
+  }
+
+  function closeJoinChatPanel() {
+    showJoinChatPanel.value = false;
   }
 
   /**
-   * Handle new chat creation
-   * Shows create drawer on error, closes on success
+   * Handle new chat creation.
+   * Keeps the panel open on error and closes after success.
    */
   async function handleCreateChat() {
     const success = await chatStore.createNewChat();
     if (success) {
       await delay();
-      closeDrawer("#createChatMenu");
+      closeCreateChatPanel();
     }
   }
 
   /**
-   * Handle join existing chat
-   * Shows join drawer on error, closes on success
+   * Handle joining an existing chat.
+   * Keeps the panel open on error and closes after success.
    */
   async function handleJoinChat() {
     const success = await chatStore.joinChat();
     if (success) {
       await delay();
-      closeDrawer("#joinChatMenu");
+      closeJoinChatPanel();
     }
   }
 
@@ -61,6 +64,10 @@ function setup() {
     isJoining,
     joinError,
     joinSuccess,
+    showCreateChatPanel,
+    showJoinChatPanel,
+    closeCreateChatPanel,
+    closeJoinChatPanel,
     handleCreateChat,
     handleJoinChat,
   };
