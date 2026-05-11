@@ -15,21 +15,91 @@
             <wa-icon name="xmark"></wa-icon>
         </wa-button>
     </div>
-    <label
-        class="media-upload-button"
-        :class="{ 'is-disabled': isSending || isEditingMessage || selectedMedia.length >= 4 }"
-        title="Attach image, video, or PDF"
-        aria-label="Attach image, video, or PDF"
-    >
-        <wa-icon name="paperclip"></wa-icon>
-        <input
-            type="file"
-            accept="image/*,video/*,application/pdf,.pdf"
-            multiple
-            :disabled="isSending || isEditingMessage || selectedMedia.length >= 4"
-            @change="handleMediaSelect"
-        />
-    </label>
+    <div class="attachment-menu-wrapper" ref="attachmentMenuWrapper">
+        <button
+            type="button"
+            class="media-upload-button"
+            :class="{ 'is-disabled': isAttachmentDisabled }"
+            title="Attach content"
+            aria-label="Attach content"
+            aria-haspopup="menu"
+            :aria-expanded="isAttachmentMenuOpen ? 'true' : 'false'"
+            :disabled="isAttachmentDisabled"
+            @click="toggleAttachmentMenu"
+        >
+            <wa-icon name="paperclip"></wa-icon>
+        </button>
+        <div
+            v-if="isAttachmentMenuOpen"
+            class="attachment-menu"
+            role="menu"
+            aria-label="Attachment options"
+        >
+            <label
+                class="attachment-menu-option"
+                role="menuitem"
+                tabindex="0"
+                title="Attach images"
+                @keydown.enter.prevent="openAttachmentPicker"
+                @keydown.space.prevent="openAttachmentPicker"
+            >
+                <wa-icon name="image"></wa-icon>
+                <span>
+                    <strong>Images</strong>
+                    <small>Photos and GIFs</small>
+                </span>
+                <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    :disabled="isAttachmentDisabled"
+                    @change="handleMediaSelect"
+                />
+            </label>
+            <label
+                class="attachment-menu-option"
+                role="menuitem"
+                tabindex="0"
+                title="Attach videos"
+                @keydown.enter.prevent="openAttachmentPicker"
+                @keydown.space.prevent="openAttachmentPicker"
+            >
+                <wa-icon name="video"></wa-icon>
+                <span>
+                    <strong>Videos</strong>
+                    <small>Clips up to 30 MB</small>
+                </span>
+                <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    :disabled="isAttachmentDisabled"
+                    @change="handleMediaSelect"
+                />
+            </label>
+            <label
+                class="attachment-menu-option"
+                role="menuitem"
+                tabindex="0"
+                title="Attach files"
+                @keydown.enter.prevent="openAttachmentPicker"
+                @keydown.space.prevent="openAttachmentPicker"
+            >
+                <wa-icon name="file-pdf"></wa-icon>
+                <span>
+                    <strong>Files</strong>
+                    <small>PDF documents</small>
+                </span>
+                <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    :disabled="isAttachmentDisabled"
+                    @change="handleMediaSelect"
+                />
+            </label>
+        </div>
+    </div>
     <textarea
         ref="messageInput"
         class="message-input"

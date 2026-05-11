@@ -1,4 +1,4 @@
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   useGraffiti,
   useGraffitiSession,
@@ -27,11 +27,16 @@ function setup() {
 
   const myMessage = ref('');
   const messageInput = ref(null);
+  const attachmentMenuWrapper = ref(null);
   const selectedMedia = ref([]);
+  const isAttachmentMenuOpen = ref(false);
   const isSending = ref(false);
   const sendError = ref("");
   const composerTarget = computed(() => editTarget.value || replyTarget.value);
   const isEditingMessage = computed(() => Boolean(editTarget.value));
+  const isAttachmentDisabled = computed(() => (
+    isSending.value || isEditingMessage.value || selectedMedia.value.length >= MAX_ATTACHMENTS
+  ));
   const submitLabel = computed(() => {
     if (isSending.value) return isEditingMessage.value ? "Saving..." : "Sending...";
     return isEditingMessage.value ? "Save" : "Send";
@@ -67,6 +72,31 @@ function setup() {
 
     event.preventDefault();
     sendMessage();
+  }
+
+  function closeAttachmentMenu() {
+    isAttachmentMenuOpen.value = false;
+  }
+
+  function toggleAttachmentMenu() {
+    if (isAttachmentDisabled.value) return;
+    isAttachmentMenuOpen.value = !isAttachmentMenuOpen.value;
+  }
+
+  function closeAttachmentMenuOnOutsideClick(event) {
+    if (!isAttachmentMenuOpen.value) return;
+    if (attachmentMenuWrapper.value?.contains(event.target)) return;
+    closeAttachmentMenu();
+  }
+
+  function closeAttachmentMenuOnEscape(event) {
+    if (event.key === "Escape") {
+      closeAttachmentMenu();
+    }
+  }
+
+  function openAttachmentPicker(event) {
+    event.currentTarget.querySelector("input")?.click();
   }
 
   function clearComposerTarget() {
@@ -252,6 +282,8 @@ function setup() {
   }
 
   function handleMediaSelect(event) {
+    closeAttachmentMenu();
+
     if (isEditingMessage.value) {
       event.target.value = "";
       return;
@@ -301,7 +333,16 @@ function setup() {
     selectedMedia.value = selectedMedia.value.filter((media) => media.id !== id);
   }
 
-  onBeforeUnmount(clearSelectedMedia);
+  onMounted(() => {
+    document.addEventListener("click", closeAttachmentMenuOnOutsideClick);
+    document.addEventListener("keydown", closeAttachmentMenuOnEscape);
+  });
+
+  onBeforeUnmount(() => {
+    clearSelectedMedia();
+    document.removeEventListener("click", closeAttachmentMenuOnOutsideClick);
+    document.removeEventListener("keydown", closeAttachmentMenuOnEscape);
+  });
 
   watch(
     editTarget,
@@ -492,12 +533,17 @@ function setup() {
   return {
     myMessage,
     messageInput,
+    attachmentMenuWrapper,
     selectedMedia,
     composerTarget,
     isEditingMessage,
+    isAttachmentDisabled,
+    isAttachmentMenuOpen,
     submitLabel,
     isSubmitDisabled,
     sendMessage,
+    toggleAttachmentMenu,
+    openAttachmentPicker,
     handleMessageInput,
     handleMessageKeydown,
     handleMediaSelect,
