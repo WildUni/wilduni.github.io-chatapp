@@ -250,13 +250,22 @@ function setup() {
     return profileMap.value[user]?.name || handleCache.value.get(user) || user;
   }
 
+  function getOtherDmActor(actors, ownActor = session.value?.actor) {
+    if (actors.length !== 2) return null;
+    return actors.find(user => user !== ownActor) ?? actors[0] ?? null;
+  }
+
   const automaticChatName = computed(() => {
     const actors = memberActors.value;
     const ownActor = session.value?.actor;
 
-    if (actors.length === 2 && ownActor) {
-      const otherActor = actors.find(user => user !== ownActor);
-      if (otherActor) return getProfileName(otherActor);
+    if (actors.length === 1) {
+      return `${getProfileName(actors[0])} (chat to self)`;
+    }
+
+    if (actors.length === 2) {
+      const otherActor = getOtherDmActor(actors, ownActor);
+      if (otherActor) return `${getProfileName(otherActor)} (DM)`;
     }
 
     if (actors.length > 0) return actors.map(getProfileName).join(", ");
@@ -312,6 +321,19 @@ function setup() {
     previewMembers.value = resolved;
   }, { immediate: true });
 
+  const dmDefaultMember = computed(() => {
+    if (previewMembers.value.length === 1) return previewMembers.value[0];
+    if (previewMembers.value.length !== 2) return null;
+
+    return previewMembers.value.find(member => member.user !== session.value?.actor)
+      ?? previewMembers.value[0]
+      ?? null;
+  });
+
+  const displayChatImageUrl = computed(() =>
+    chatImageUrl.value || dmDefaultMember.value?.profile.avatarUrl || null
+  );
+
   const isAlreadyMember = computed(() =>
     chatList.value.some(chat => chat.value.chatId === chatId.value && chat.value.value === "Join") ||
     memberActors.value.includes(session.value?.actor)
@@ -346,7 +368,7 @@ function setup() {
     chatId,
     chatName,
     chatExists,
-    chatImageUrl,
+    chatImageUrl: displayChatImageUrl,
     previewMembers,
     isJoining,
     joinError,

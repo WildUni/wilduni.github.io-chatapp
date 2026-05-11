@@ -830,13 +830,22 @@ export const useChatStore = defineStore("chat", () => {
     )
   );
 
+  function getOtherDmActor(memberActors, ownActor = session.value?.actor) {
+    if (memberActors.length !== 2) return null;
+    return memberActors.find(user => user !== ownActor) ?? memberActors[0] ?? null;
+  }
+
   function getAutomaticChatName(chatId) {
     const memberActors = memberActorsByChatId.value[chatId] ?? [];
     const ownActor = session.value?.actor;
 
-    if (memberActors.length === 2 && ownActor) {
-      const otherActor = memberActors.find(user => user !== ownActor);
-      if (otherActor) return getProfileName(otherActor);
+    if (memberActors.length === 1) {
+      return `${getProfileName(memberActors[0])} (chat to self)`;
+    }
+
+    if (memberActors.length === 2) {
+      const otherActor = getOtherDmActor(memberActors, ownActor);
+      if (otherActor) return `${getProfileName(otherActor)} (DM)`;
     }
 
     if (memberActors.length > 0) {
@@ -845,6 +854,30 @@ export const useChatStore = defineStore("chat", () => {
 
     return ownActor ? getProfileName(ownActor) : 'Untitled chat';
   }
+
+  const chatDefaultImageUrlsByChatId = computed(() =>
+    Object.fromEntries(
+      Object.entries(memberActorsByChatId.value).map(([chatId, actors]) => {
+        const defaultActor = actors.length === 1
+          ? actors[0]
+          : getOtherDmActor(actors);
+        const profile = defaultActor ? profileCache.getProfile(defaultActor) : null;
+        return [chatId, profile?.avatarUrl ?? null];
+      })
+    )
+  );
+
+  const chatDefaultImageLoadingByChatId = computed(() =>
+    Object.fromEntries(
+      Object.entries(memberActorsByChatId.value).map(([chatId, actors]) => {
+        const defaultActor = actors.length === 1
+          ? actors[0]
+          : getOtherDmActor(actors);
+        const profile = defaultActor ? profileCache.getProfile(defaultActor) : null;
+        return [chatId, Boolean(profile?.avatarIsLoading)];
+      })
+    )
+  );
 
   const areChatNamesReady = computed(() => {
     if (isBaseChatListLoading.value) return false;
@@ -1348,6 +1381,8 @@ export const useChatStore = defineStore("chat", () => {
     mentionRequest,
     chatImageUrls,
     chatImageLoadingByChat,
+    chatDefaultImageUrlsByChatId,
+    chatDefaultImageLoadingByChatId,
     chatPreviewMembersByChatId,
 
     // Chat list

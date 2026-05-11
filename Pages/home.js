@@ -437,6 +437,14 @@ function setup() {
   );
 
   const previewMembers = computed(() => infoMembers.value.slice(0, 4));
+  const dmDefaultMember = computed(() => {
+    if (infoMembers.value.length === 1) return infoMembers.value[0];
+    if (infoMembers.value.length !== 2) return null;
+
+    return infoMembers.value.find(member => member.user !== session.value?.actor)
+      ?? infoMembers.value[0]
+      ?? null;
+  });
 
   const activeChatAvatar = computed(() => {
     if (activeChatImageLoading.value) {
@@ -451,6 +459,22 @@ function setup() {
       return {
         type: "image",
         imageUrl: activeChatImageUrl.value,
+        members: [],
+      };
+    }
+
+    if (dmDefaultMember.value?.profile.avatarIsLoading) {
+      return {
+        type: "loading",
+        imageUrl: null,
+        members: [],
+      };
+    }
+
+    if (dmDefaultMember.value?.profile.avatarUrl) {
+      return {
+        type: "image",
+        imageUrl: dmDefaultMember.value.profile.avatarUrl,
         members: [],
       };
     }

@@ -13,9 +13,9 @@
         <ChatListItem
             :chatId="chat.value.chatId"
             :chatName="chat.value.displayChatName"
-            :chatImageUrl="chatImageUrls[chat.value.chatId] || ''"
-            :isChatImageLoading="chatImageLoadingByChat[chat.value.chatId]"
-            :preview-members="chatPreviewMembersByChatId[chat.value.chatId] || []"
+            :chatImageUrl="chatImageUrls[chat.value.chatId] || chatDefaultImageUrlsByChatId[chat.value.chatId] || ''"
+            :isChatImageLoading="chatImageLoadingByChat[chat.value.chatId] || (!chatImageUrls[chat.value.chatId] && chatDefaultImageLoadingByChatId[chat.value.chatId])"
+            :preview-members="(chatImageUrls[chat.value.chatId] || chatDefaultImageUrlsByChatId[chat.value.chatId]) ? [] : (chatPreviewMembersByChatId[chat.value.chatId] || [])"
             :hasUnread="hasUnreadByRootChatId[chat.value.chatId]"
             :latest-message="latestMessageByRootChatId[chat.value.chatId]"
             :is-message-preview-loading="!areChatMessagesReady"
